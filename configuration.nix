@@ -10,9 +10,20 @@
       ./hardware-configuration.nix
     ];
 
-  # Use the systemd-boot EFI boot loader.
-  boot.loader.systemd-boot.enable = true;
+  # Disable systemd-boot
+  boot.loader.systemd-boot.enable = false;
   boot.loader.efi.canTouchEfiVariables = true;
+
+  boot.loader.grub = {
+    enable = true;
+    device = "nodev";
+    efiSupport = true;
+    useOSProber = false;
+    theme = pkgs.sleek-grub-theme.override {
+      withStyle = "bigSur";
+      withBanner = "";
+    };
+  };
 
   networking.hostName = "artifydesktop";
 
