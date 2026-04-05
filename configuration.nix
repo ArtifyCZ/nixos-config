@@ -103,6 +103,10 @@
       "audio"
     ];
     packages = with pkgs; [
+      discord
+      firefox
+      openttd-jgrpp
+      steam
       tree
     ];
   };
@@ -112,8 +116,9 @@
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
   environment.systemPackages = with pkgs; [
+    fastfetch
     git
-    vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    vim
     wget
   ];
 
