@@ -35,14 +35,17 @@
   # };
 
   # Enable the X11 windowing system.
-  # services.xserver.enable = true;
+  services.xserver.enable = true;
 
-
+  services.displayManager.gdm.enable = true;
+  services.desktopManager.gnome.enable = true;
   
 
   # Configure keymap in X11
-  # services.xserver.xkb.layout = "us";
-  # services.xserver.xkb.options = "eurosign:e,caps:escape";
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "";
+  };
 
   # Enable CUPS to print documents.
   # services.printing.enable = true;
@@ -82,6 +85,12 @@
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     wget
   ];
+
+  environment.sessionVariables = {
+    # Hint electron apps to use Wayland
+    NIXOS_OZONE_WL = "1";
+    _JAVA_AWT_WM_NONREPARENTING = "1";
+  };
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
