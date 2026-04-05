@@ -120,5 +120,33 @@
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
   system.stateVersion = "25.11"; # Did you read the comment?
 
+  # Allow unfree packages (required for Nvidia drivers)
+  nixpkgs.config.allowUnfree = true;
+
+  # Enable Graphics
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+  };
+
+  # Load nvidia driver for Xorg and Wayland
+  services.xserver.videoDrivers = ["nvidia"];
+
+  hardware.nvidia = {
+    # Modesetting is required for Wayland and most modern compositors
+    modesetting.enable = true;
+
+    # Nvidia power management, can cause issues with sleep/suspend
+    powerManagement.enable = false;
+
+    # Use the official Nvidia drivers (not noveau)
+    open = true;
+
+    # Enable the Nvidia settings menu
+    nvidiaSettings = true;
+
+    # Choose the driver version
+    package = config.boot.kernelPackages.nvidiaPackages.stable;
+  };
 }
 
