@@ -117,6 +117,7 @@
       prismlauncher
       signal-desktop
       tree
+      vscode
     ];
   };
 

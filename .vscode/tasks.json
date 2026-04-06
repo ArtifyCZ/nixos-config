@@ -1,0 +1,22 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "NixOS rebuild boot",
+            "type": "shell",
+            "command": "sudo nixos-rebuild boot"
+        },
+        {
+            "label": "NixOS rebuild switch",
+            "type": "shell",
+            "command": "sudo nixos-rebuild switch"
+        },
+        {
+            "label": "NixOS rebuild test",
+            "type": "shell",
+            "command": "sudo nixos-rebuild test"
+        },
+    ],
+}
