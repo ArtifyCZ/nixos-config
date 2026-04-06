@@ -45,6 +45,15 @@
     "systemd.show_status=auto"
   ];
 
+  fileSystems."/mnt/hdd" = {
+    device = "/dev/disk/by-uuid/40AC6DD0AC6DC0D0";
+    fsType = "ntfs";
+    options = [
+      "defaults"
+      "nofail"
+    ];
+  };
+
   networking.hostName = "artifydesktop";
 
   # Configure network connections interactively with nmcli or nmtui.
