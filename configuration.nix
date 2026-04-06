@@ -104,23 +104,24 @@
     ];
     packages = with pkgs; [
       discord
-      firefox
       openttd-jgrpp
-      steam
+      prismlauncher
+      signal-desktop
       tree
     ];
   };
-
-  # programs.firefox.enable = true;
 
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
   environment.systemPackages = with pkgs; [
     fastfetch
-    git
-    vim
     wget
   ];
+
+  programs.firefox.enable = true;
+  programs.git.enable = true;
+  programs.vim.enable = true;
+  programs.steam.enable = true;
 
   environment.sessionVariables = {
     # Hint electron apps to use Wayland
