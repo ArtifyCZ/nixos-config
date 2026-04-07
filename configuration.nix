@@ -112,6 +112,7 @@
       "audio"
     ];
     packages = with pkgs; [
+      brave
       discord
       openttd-jgrpp
       prismlauncher
