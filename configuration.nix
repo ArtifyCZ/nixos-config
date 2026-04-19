@@ -131,8 +131,10 @@
 
   programs.firefox.enable = true;
   programs.git.enable = true;
+  programs.nix-ld.enable = true;
   programs.vim.enable = true;
   programs.steam.enable = true;
+  programs.xwayland.enable = true;
 
   environment.sessionVariables = {
     # Hint electron apps to use Wayland
