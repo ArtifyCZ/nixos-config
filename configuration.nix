@@ -106,6 +106,7 @@
     isNormalUser = true;
     description = "Richard Tichy";
     extraGroups = [
+      "docker"
       "networkmanager"
       "wheel"
       "video"
@@ -140,6 +141,10 @@
     # Hint electron apps to use Wayland
     NIXOS_OZONE_WL = "1";
     _JAVA_AWT_WM_NONREPARENTING = "1";
+  };
+
+  virtualisation.docker = {
+    enable = true;
   };
 
   # Some programs need SUID wrappers, can be configured further or are
