@@ -115,9 +115,11 @@
     packages = with pkgs; [
       brave
       discord
+      obsidian
       openttd-jgrpp
       prismlauncher
       signal-desktop
+      tor-browser
       tree
       vscode
     ];
@@ -127,6 +129,7 @@
   # You can use https://search.nixos.org/ to find more packages (and options).
   environment.systemPackages = with pkgs; [
     fastfetch
+    gnome-tweaks
     wget
   ];
 

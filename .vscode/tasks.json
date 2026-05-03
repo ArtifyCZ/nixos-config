@@ -11,12 +11,14 @@
         {
             "label": "NixOS rebuild switch",
             "type": "shell",
-            "command": "sudo nixos-rebuild switch"
+            "command": "sudo nixos-rebuild switch",
+            "problemMatcher": []
         },
         {
             "label": "NixOS rebuild test",
             "type": "shell",
-            "command": "sudo nixos-rebuild test"
-        },
+            "command": "sudo nixos-rebuild test",
+            "problemMatcher": []
+        }
     ],
 }
