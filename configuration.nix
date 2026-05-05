@@ -115,12 +115,14 @@
     packages = with pkgs; [
       brave
       discord
+      element-desktop
       obsidian
       openttd-jgrpp
       prismlauncher
       signal-desktop
       tor-browser
       tree
+      vlc
       vscode
     ];
   };
@@ -130,6 +132,7 @@
   environment.systemPackages = with pkgs; [
     fastfetch
     gnome-tweaks
+    vulkan-tools
     wget
   ];
 

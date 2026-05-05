@@ -6,7 +6,8 @@
         {
             "label": "NixOS rebuild boot",
             "type": "shell",
-            "command": "sudo nixos-rebuild boot"
+            "command": "sudo nixos-rebuild boot",
+            "problemMatcher": []
         },
         {
             "label": "NixOS rebuild switch",
