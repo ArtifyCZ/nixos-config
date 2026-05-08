@@ -148,6 +148,11 @@
   programs.steam.enable = true;
   programs.xwayland.enable = true;
 
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
+
   environment.sessionVariables = {
     # Hint electron apps to use Wayland
     NIXOS_OZONE_WL = "1";
