@@ -121,6 +121,7 @@
       brave
       discord
       element-desktop
+      nixd
       obsidian
       openttd-jgrpp
       prismlauncher
