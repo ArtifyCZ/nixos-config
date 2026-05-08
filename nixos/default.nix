@@ -2,14 +2,19 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
-  imports =
-    [
-      ./disko-config.nix
-      ./hardware-configuration.nix
-    ];
+  imports = [
+    ./disko-config.nix
+    ./hardware-configuration.nix
+    ./home-manager.nix
+  ];
 
   # Disable systemd-boot
   boot.loader.systemd-boot.enable = false;
@@ -80,7 +85,6 @@
 
   services.displayManager.gdm.enable = true;
   services.desktopManager.gnome.enable = true;
-  
 
   # Configure keymap in X11
   services.xserver.xkb = {
@@ -219,7 +223,7 @@
   };
 
   # Load nvidia driver for Xorg and Wayland
-  services.xserver.videoDrivers = ["nvidia"];
+  services.xserver.videoDrivers = [ "nvidia" ];
 
   hardware.nvidia = {
     # Modesetting is required for Wayland and most modern compositors
@@ -238,4 +242,3 @@
     package = config.boot.kernelPackages.nvidiaPackages.stable;
   };
 }
-

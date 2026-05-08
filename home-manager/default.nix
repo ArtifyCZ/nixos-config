@@ -1,7 +1,11 @@
-{config, pkgs, ...}:
+{ config, pkgs, ... }:
 
 {
   home.stateVersion = "25.11";
+
+  home.packages = with pkgs; [
+    nixfmt
+  ];
 
   programs.git = {
     enable = true;
