@@ -36,27 +36,10 @@
         "type": "github"
       }
     },
-    "nixpkgsFork": {
-      "locked": {
-        "lastModified": 1777827381,
-        "narHash": "sha256-fZeOwoSn9CTylm8UueFnI3mrbFhXL4dcpUkQe22CpFk=",
-        "owner": "artifycz",
-        "repo": "nixpkgs",
-        "rev": "927c5b72f13a78d9f1dc4cfd60b5fa771a69a1c1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "artifycz",
-        "ref": "master",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "disko": "disko",
-        "nixpkgs": "nixpkgs",
-        "nixpkgsFork": "nixpkgsFork"
+        "nixpkgs": "nixpkgs"
       }
     }
   },
