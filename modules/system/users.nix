@@ -13,7 +13,7 @@
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    users.artify = "${self}/home-manager";
+    users.artify = "${self}/modules/home";
   };
 
   users.users.artify = {
