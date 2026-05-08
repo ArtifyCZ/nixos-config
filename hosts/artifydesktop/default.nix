@@ -13,42 +13,6 @@
   imports = [
     ./disko-config.nix
     ./hardware-configuration.nix
-    ./home-manager.nix
-  ];
-
-  # Disable systemd-boot
-  boot.loader.systemd-boot.enable = false;
-  boot.loader.efi.canTouchEfiVariables = true;
-
-  boot.loader.grub = {
-    enable = true;
-    device = "nodev";
-    efiSupport = true;
-    useOSProber = false;
-    theme = pkgs.sleek-grub-theme.override {
-      withStyle = "bigSur";
-      withBanner = "";
-    };
-  };
-
-  boot.plymouth = {
-    enable = true;
-    theme = "circuit";
-    themePackages = with pkgs; [
-      (adi1090x-plymouth-themes.override {
-        selected_themes = [ "circuit" ];
-      })
-    ];
-  };
-
-  # Enable "Silent Boot"
-  boot.consoleLogLevel = 3;
-  boot.initrd.verbose = false;
-  boot.kernelParams = [
-    "quiet"
-    "splash"
-    "udev.log_level=3"
-    "systemd.show_status=auto"
   ];
 
   fileSystems."/mnt/hdd" = {
@@ -105,33 +69,6 @@
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.artify = {
-    isNormalUser = true;
-    description = "Richard Tichy";
-    extraGroups = [
-      "docker"
-      "networkmanager"
-      "wheel"
-      "video"
-      "audio"
-    ];
-    packages = with pkgs; [
-      brave
-      discord
-      element-desktop
-      nixd
-      obsidian
-      openttd-jgrpp
-      prismlauncher
-      signal-desktop
-      tor-browser
-      tree
-      vlc
-      vscode
-    ];
-  };
 
   # List packages installed in system profile.
   # You can use https://search.nixos.org/ to find more packages (and options).
