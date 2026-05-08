@@ -7,15 +7,12 @@
     disko.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, disko, ... }@inputs: {
+  outputs = { self, nixpkgs, ... }@inputs: {
     nixosConfigurations.artifydesktop = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
-        disko.nixosModules.disko
-        ./disko-config.nix
-        ./configuration.nix
-        ./hardware-configuration.nix
+        ./nixos
       ];
     };
   };
