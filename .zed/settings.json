@@ -1,0 +1,21 @@
+{
+  "lsp": {
+    "nixd": {
+      "initialization_options": {
+        "nixd": {
+          "nixpkgs": {
+            "expr": "import (builtins.getFlake (builtins.toString ./)).inputs.nixpkgs { }",
+          },
+          "formatting": {
+            "command": ["nixfmt"],
+          },
+          "options": {
+            "nixos": {
+              "expr": "(builtins.getFlake (builtins.toString ./)).nixosConfigurations.artifydesktop",
+            },
+          },
+        },
+      },
+    },
+  },
+}

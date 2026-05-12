@@ -9,6 +9,7 @@
     element-desktop
     nixd
     nixfmt
+    nixpkgs-review
     obsidian
     openttd-jgrpp
     prismlauncher
