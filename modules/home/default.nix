@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, pkgs-unstable, ... }:
 
 {
   home.stateVersion = "25.11";
@@ -11,7 +11,7 @@
     nixfmt
     nixpkgs-review
     obsidian
-    openttd-jgrpp
+    pkgs-unstable.openttd-jgrpp
     prismlauncher
     signal-desktop
     tor-browser

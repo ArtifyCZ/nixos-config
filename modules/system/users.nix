@@ -2,6 +2,7 @@
   self,
   inputs,
   pkgs,
+  pkgs-unstable,
   ...
 }:
 
@@ -13,6 +14,9 @@
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
+    extraSpecialArgs = {
+      inherit pkgs-unstable;
+    };
     users.artify = "${self}/modules/home";
   };
 
