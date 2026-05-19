@@ -37,6 +37,9 @@
   programs.zed-editor = {
     enable = true;
     extensions = [
+      "csharp"
+      "make"
+      "material-icon-theme"
       "nix"
       "rust"
       "toml"
@@ -53,6 +56,7 @@
       agent.dock = "right";
       project_panel.dock = "left";
       auto_update = false;
+      icon_theme = "Material Icon Theme";
     };
     defaultEditor = true;
   };
