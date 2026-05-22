@@ -75,6 +75,7 @@
   environment.systemPackages = with pkgs; [
     fastfetch
     gnome-tweaks
+    gnumake
     vulkan-tools
     wget
   ];
