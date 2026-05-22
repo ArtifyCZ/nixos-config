@@ -13,6 +13,7 @@
     obsidian
     pkgs-unstable.openttd-jgrpp
     prismlauncher
+    remmina
     signal-desktop
     tor-browser
     tree
