@@ -1,8 +1,4 @@
 {
-  self,
-  inputs,
-  pkgs,
-  pkgs-unstable,
   ...
 }:
 
@@ -17,5 +13,9 @@
       "video"
       "audio"
     ];
+  };
+
+  homeProfiles.artify = {
+    enable = true;
   };
 }

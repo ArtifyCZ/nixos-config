@@ -1,6 +1,27 @@
-{ pkgs, pkgs-unstable, ... }:
+{
+  lib,
+  pkgs,
+  pkgs-unstable,
+  ...
+}:
+
+let
+  optionsModule =
+    { ... }:
+    {
+      options.homeProfile = lib.mkOption {
+        type = lib.types.attrs;
+        default = { };
+      };
+    };
+
+in
 
 {
+  imports = [
+    optionsModule
+  ];
+
   home.stateVersion = "25.11";
 
   home.packages = with pkgs; [
