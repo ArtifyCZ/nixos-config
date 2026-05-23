@@ -21,19 +21,25 @@
       nixpkgs-unstable,
       ...
     }@inputs:
+    let
+      mkSystem = import ./lib/mkSystem.nix {
+        inherit
+          inputs
+          self
+          nixpkgs
+          nixpkgs-unstable
+          ;
+      };
+    in
+
     {
-      nixosConfigurations.artifydesktop = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.artifydesktop = mkSystem {
         system = "x86_64-linux";
-        specialArgs = {
-          inherit inputs self;
-          pkgs-unstable = import nixpkgs-unstable {
-            system = "x86_64-linux";
-            config.allowUnfree = true;
-          };
-        };
-        modules = [
-          ./modules/system
-          ./hosts/artifydesktop
+        hostModules = [
+          "${self}/hosts/artifydesktop"
+        ];
+        userModules = [
+          "${self}/users/artify"
         ];
       };
     };
