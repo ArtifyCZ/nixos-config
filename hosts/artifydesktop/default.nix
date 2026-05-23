@@ -6,6 +6,7 @@
   config,
   lib,
   pkgs,
+  self,
   ...
 }:
 
@@ -13,6 +14,9 @@
   imports = [
     ./disko-config.nix
     ./hardware-configuration.nix
+    ./users.nix
+
+    "${self}/users/artify"
   ];
 
   fileSystems."/mnt/hdd" = {

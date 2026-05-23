@@ -15,13 +15,8 @@
 
   options.homeProfiles = lib.mkOption {
     default = { };
-    type = lib.types.attrsOf (
-      lib.types.submodule {
-        options = {
-          enable = lib.mkEnableOption "Activate this user profile";
-        };
-      }
-    );
+    description = "A module for each user's profile";
+    type = lib.types.attrsOf lib.types.unspecified;
   };
 
   config.home-manager = {
@@ -30,16 +25,9 @@
     extraSpecialArgs = {
       inherit pkgs-unstable;
     };
-    users =
-      let
-        activeProfiles = lib.filterAttrs (name: value: value.enable) config.homeProfiles;
-        mkHomeModule = username: homeProfile: {
-          imports = [
-            "${self}/modules/home/user-profile"
-          ];
-          config.homeProfile = homeProfile;
-        };
-      in
-      lib.mapAttrs mkHomeModule activeProfiles;
+    sharedModules = [
+      "${self}/modules/home/user-profile"
+    ];
+    users = config.homeProfiles;
   };
 }

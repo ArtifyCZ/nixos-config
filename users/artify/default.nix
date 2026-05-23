@@ -1,6 +1,4 @@
-{
-  ...
-}:
+{ ... }:
 
 {
   users.users.artify = {
@@ -15,7 +13,5 @@
     ];
   };
 
-  homeProfiles.artify = {
-    enable = true;
-  };
+  homeProfiles.artify.imports = [ ./home ];
 }
