@@ -1,5 +1,5 @@
 { ... }:
 
 {
-  homeProfiles.artify.homeProfile.installGuiApps = true;
+  homeProfiles.artify.homeProfile.desktopApps.enable = true;
 }

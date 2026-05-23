@@ -1,76 +1,24 @@
 {
-  config,
-  lib,
   pkgs,
-  pkgs-unstable,
+  self,
   ...
 }:
-
-let
-  cfg = config.homeProfile;
-in
 
 {
   imports = [
     ./git.nix
-  ];
 
-  options.homeProfile = {
-    installGuiApps = lib.mkEnableOption "Install GUI app packages";
-  };
+    "${self}/modules/home/desktop-apps"
+  ];
 
   config = {
     home.stateVersion = "25.11";
 
-    home.packages =
-      with pkgs;
-      (
-        [
-          nixd
-          nixfmt
-          nixpkgs-review
-          tree
-        ]
-        ++ lib.optionals cfg.installGuiApps [
-          brave
-          discord
-          element-desktop
-          obsidian
-          pkgs-unstable.openttd-jgrpp
-          prismlauncher
-          remmina
-          signal-desktop
-          tor-browser
-          vlc
-          vscode
-        ]
-      );
-
-    programs.zed-editor = {
-      enable = true;
-      extensions = [
-        "csharp"
-        "make"
-        "material-icon-theme"
-        "nix"
-        "rust"
-        "toml"
-      ];
-      userSettings = {
-        theme.mode = "system";
-        ui_font_size = 14;
-        ui_font_family = ".ZedMono";
-        buffer_font_size = 14;
-        buffer_font_family = ".ZedMono";
-        vim_mode = false;
-        git_panel.dock = "left";
-        git_panel.tree_view = true;
-        agent.dock = "right";
-        project_panel.dock = "left";
-        auto_update = false;
-        icon_theme = "Material Icon Theme";
-      };
-      defaultEditor = true;
-    };
+    home.packages = with pkgs; [
+      nixd
+      nixfmt
+      nixpkgs-review
+      tree
+    ];
   };
 }

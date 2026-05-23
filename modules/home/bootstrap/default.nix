@@ -2,7 +2,6 @@
   config,
   inputs,
   lib,
-  pkgs,
   pkgs-unstable,
   self,
   ...
@@ -23,7 +22,10 @@
     useGlobalPkgs = true;
     useUserPackages = true;
     extraSpecialArgs = {
-      inherit pkgs-unstable;
+      inherit
+        self
+        pkgs-unstable
+        ;
     };
     sharedModules = [
       "${self}/modules/home/user-profile"
