@@ -2,7 +2,6 @@
 
 {
   imports = [
-    ./git.nix
-    ./shells.nix
+    ./fish.nix
   ];
 }

@@ -9,6 +9,7 @@
     ./git.nix
 
     "${self}/modules/home/desktop-apps"
+    "${self}/modules/home/shells"
   ];
 
   config = {
