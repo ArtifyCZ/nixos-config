@@ -20,6 +20,12 @@
             "type": "shell",
             "command": "sudo nixos-rebuild test",
             "problemMatcher": []
+        },
+        {
+            "label": "Nix update dependencies",
+            "type": "shell",
+            "command": "nix flake update",
+            "problemMatcher": []
         }
     ],
 }

@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  pkgs-unstable,
   ...
 }:
 
@@ -21,7 +20,7 @@ in
       discord
       element-desktop
       obsidian
-      pkgs-unstable.openttd-jgrpp
+      openttd-jgrpp
       prismlauncher
       remmina
       signal-desktop
