@@ -35,4 +35,7 @@
     "udev.log_level=3"
     "systemd.show_status=auto"
   ];
+
+  boot.tmp.tmpfsHugeMemoryPages = "within_size";
+  boot.tmp.useTmpfs = true;
 }
