@@ -2,6 +2,7 @@
 
 {
   imports = [
+    "${self}/modules/system/common"
     "${self}/modules/home/bootstrap"
   ];
 
