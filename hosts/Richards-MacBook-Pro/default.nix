@@ -1,0 +1,10 @@
+{ ... }:
+
+{
+  # Let Determinate Nix handle Nix configuration
+  nix.enable = false;
+
+  # DO NOT CHANGE!
+  # This is for backwards compatibility.
+  system.stateVersion = 7;
+}

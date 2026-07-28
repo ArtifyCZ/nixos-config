@@ -1,5 +1,5 @@
 {
-  description = "My Encrypted NixOS Flake";
+  description = "Richard's Nix configurations";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -12,6 +12,10 @@
       url = "github:nix-community/home-manager/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -19,6 +23,7 @@
       self,
       nixpkgs,
       nixpkgs-unstable,
+      nix-darwin,
       ...
     }@inputs:
     let
@@ -33,6 +38,16 @@
     in
 
     {
+      darwinConfigurations."Richards-MacBook-Pro" = nix-darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        modules = [
+          ./hosts/Richards-MacBook-Pro/default.nix
+        ];
+        specialArgs = {
+          inherit inputs;
+        };
+      };
+
       nixosConfigurations.artifydesktop = mkSystem {
         system = "x86_64-linux";
         hostModules = [
