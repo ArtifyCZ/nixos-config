@@ -12,9 +12,14 @@
 }:
 
 let
-  systemModules = [
-    "${self}/modules/system/nixos"
-  ];
+  systemModules = {
+    "aarch64-darwin" = [
+      "${self}/modules/system/darwin"
+    ];
+    "x86_64-linux" = [
+      "${self}/modules/system/nixos"
+    ];
+  }."${system}";
   modules = nixpkgs.lib.concatLists [
     systemModules
     userModules
@@ -30,11 +35,16 @@ let
       inputs
       self
       pkgs-unstable
+      system
       ;
   };
+  builder = {
+    "aarch64-darwin" = inputs.nix-darwin.lib.darwinSystem;
+    "x86_64-linux" = nixpkgs.lib.nixosSystem;
+  }."${system}";
 in
 
-nixpkgs.lib.nixosSystem {
+builder {
   inherit
     system
     modules

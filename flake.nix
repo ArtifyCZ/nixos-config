@@ -38,17 +38,14 @@
     in
 
     {
-      darwinConfigurations."Richards-MacBook-Pro" = nix-darwin.lib.darwinSystem {
+      darwinConfigurations."Richards-MacBook-Pro" = mkSystem {
         system = "aarch64-darwin";
-        modules = [
-          "${self}/modules/system/darwin"
+        hostModules = [
           "${self}/hosts/Richards-MacBook-Pro"
+        ];
+        userModules = [
           "${self}/users/artify"
         ];
-        specialArgs = {
-          inherit inputs self;
-          system = "aarch64-darwin";
-        };
       };
 
       nixosConfigurations.artifydesktop = mkSystem {
