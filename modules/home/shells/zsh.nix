@@ -33,8 +33,8 @@ in
         size = 50000;
         save = 50000;
         ignoreDups = true;
-        share = true;           # Share history instantly across all terminal windows
-        extended = true;        # Save timestamp with commands
+        share = true; # Share history instantly across all terminal windows
+        extended = true; # Save timestamp with commands
       };
 
       # Key quality-of-life aliases
@@ -112,13 +112,13 @@ in
     };
 
     home.packages = with pkgs; [
-      eza         # Modern ls
-      bat         # Syntax-highlighted cat
-      fd          # Fast file finder
-      ripgrep     # Fast text searching
-      fzf         # Fuzzy finder UI
-      zoxide      # Smart directory jumper
-      htop        # Process viewer
+      eza # Modern ls
+      bat # Syntax-highlighted cat
+      fd # Fast file finder
+      ripgrep # Fast text searching
+      fzf # Fuzzy finder UI
+      zoxide # Smart directory jumper
+      htop # Process viewer
     ];
   };
 }

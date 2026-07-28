@@ -12,14 +12,16 @@
 }:
 
 let
-  systemModules = {
-    "aarch64-darwin" = [
-      "${self}/modules/system/darwin"
-    ];
-    "x86_64-linux" = [
-      "${self}/modules/system/nixos"
-    ];
-  }."${system}";
+  systemModules =
+    {
+      "aarch64-darwin" = [
+        "${self}/modules/system/darwin"
+      ];
+      "x86_64-linux" = [
+        "${self}/modules/system/nixos"
+      ];
+    }
+    ."${system}";
   modules = nixpkgs.lib.concatLists [
     systemModules
     userModules
@@ -38,10 +40,12 @@ let
       system
       ;
   };
-  builder = {
-    "aarch64-darwin" = inputs.nix-darwin.lib.darwinSystem;
-    "x86_64-linux" = nixpkgs.lib.nixosSystem;
-  }."${system}";
+  builder =
+    {
+      "aarch64-darwin" = inputs.nix-darwin.lib.darwinSystem;
+      "x86_64-linux" = nixpkgs.lib.nixosSystem;
+    }
+    ."${system}";
 in
 
 builder {

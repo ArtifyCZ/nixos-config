@@ -9,10 +9,13 @@
 }:
 
 let
-  homeManagerModule = with inputs.home-manager; {
-    "aarch64-darwin" = darwinModules.home-manager;
-    "x86_64-linux" = nixosModules.home-manager;
-  }."${system}";
+  homeManagerModule =
+    with inputs.home-manager;
+    {
+      "aarch64-darwin" = darwinModules.home-manager;
+      "x86_64-linux" = nixosModules.home-manager;
+    }
+    ."${system}";
 in
 
 {
