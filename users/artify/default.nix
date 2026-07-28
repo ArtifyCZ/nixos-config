@@ -1,17 +1,31 @@
-{ ... }:
+{ pkgs, lib, ... }:
+let
+  inherit (pkgs.stdenv.hostPlatform) isDarwin isLinux;
+in
 
 {
-  users.users.artify = {
-    isNormalUser = true;
-    description = "Richard Tichy";
-    extraGroups = [
-      "docker"
-      "networkmanager"
-      "wheel"
-      "video"
-      "audio"
-    ];
-  };
+  config = lib.mkMerge [
+    {
+      users.users.artify = lib.mkMerge [
+        {
+          description = "Richard Tichy";
+        }
+        (lib.mkIf isDarwin {
+          home = "/Users/artify";
+        })
+        (lib.mkIf isLinux {
+          isNormalUser = true;
+          extraGroups = [
+            "docker"
+            "networkmanager"
+            "wheel"
+            "video"
+            "audio"
+          ];
+        })
+      ];
 
-  homeProfiles.artify.imports = [ ./home ];
+      homeProfiles.artify.imports = [ ./home ];
+    }
+  ];
 }

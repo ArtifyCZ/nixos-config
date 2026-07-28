@@ -43,9 +43,11 @@
         modules = [
           "${self}/modules/system/darwin"
           "${self}/hosts/Richards-MacBook-Pro"
+          "${self}/users/artify"
         ];
         specialArgs = {
-          inherit inputs;
+          inherit inputs self;
+          system = "aarch64-darwin";
         };
       };
 

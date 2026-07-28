@@ -4,12 +4,20 @@
   lib,
   pkgs-unstable,
   self,
+  system,
   ...
 }:
 
+let
+  homeManagerModule = with inputs.home-manager; {
+    "aarch64-darwin" = darwinModules.home-manager;
+    "x86_64-linux" = nixosModules.home-manager;
+  }."${system}";
+in
+
 {
   imports = [
-    inputs.home-manager.nixosModules.home-manager
+    homeManagerModule
   ];
 
   options.homeProfiles = lib.mkOption {
