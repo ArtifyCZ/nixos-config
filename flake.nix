@@ -41,7 +41,8 @@
       darwinConfigurations."Richards-MacBook-Pro" = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
         modules = [
-          ./hosts/Richards-MacBook-Pro/default.nix
+          "${self}/modules/system/darwin"
+          "${self}/hosts/Richards-MacBook-Pro"
         ];
         specialArgs = {
           inherit inputs;
