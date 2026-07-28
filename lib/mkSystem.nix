@@ -13,7 +13,7 @@
 
 let
   systemModules = [
-    "${self}/modules/system"
+    "${self}/modules/system/nixos"
   ];
   modules = nixpkgs.lib.concatLists [
     systemModules
