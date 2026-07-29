@@ -7,6 +7,7 @@
 
 let
   cfg = config.homeProfile.desktopApps;
+  inherit (pkgs.stdenv.hostPlatform) isDarwin isLinux;
 in
 
 {
@@ -15,23 +16,32 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = with pkgs; [
-      brave
-      cinny-desktop
-      discord
-      element-desktop
-      obsidian
-      openttd-jgrpp
-      prismlauncher
-      remmina
-      signal-desktop
-      tor-browser
-      vlc
-      vscode
-    ];
+    home.packages =
+      with pkgs;
+      lib.mkMerge [
+        (lib.mkIf isLinux [
+          brave
+          cinny-desktop
+          discord
+          element-desktop
+          obsidian
+          openttd-jgrpp
+          prismlauncher
+          remmina
+          signal-desktop
+          tor-browser
+          vlc
+          vscode
+        ])
+
+        (lib.mkIf isDarwin [
+          ghostty-bin
+        ])
+      ];
+
+    programs.zed-editor.enable = isLinux;
 
     programs.zed-editor = {
-      enable = true;
       extensions = [
         "csharp"
         "make"

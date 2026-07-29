@@ -1,21 +1,29 @@
 {
-  "lsp": {
-    "nixd": {
-      "initialization_options": {
-        "nixd": {
-          "nixpkgs": {
-            "expr": "import (builtins.getFlake (builtins.toString ./)).inputs.nixpkgs { }",
-          },
-          "formatting": {
-            "command": ["nixfmt"],
-          },
-          "options": {
-            "nixos": {
-              "expr": "(builtins.getFlake (builtins.toString ./)).nixosConfigurations.artifydesktop",
-            },
-          },
+    "languages": {
+        "Nix": {
+            "language_servers": ["nixd", "!nil"],
         },
-      },
     },
-  },
+    "lsp": {
+        "nixd": {
+            "initialization_options": {
+                "nixd": {
+                    "nixpkgs": {
+                        "expr": "import (builtins.getFlake (builtins.toString ./)).inputs.nixpkgs { }",
+                    },
+                    "formatting": {
+                        "command": ["nixfmt"],
+                    },
+                    "options": {
+                        "nixos": {
+                            "expr": "(builtins.getFlake (builtins.toString ./)).nixosConfigurations.artifydesktop.options",
+                        },
+                        "darwin": {
+                            "expr": "(builtins.getFlake (builtins.toString ./)).darwinConfigurations.Richards-MacBook-Pro.options",
+                        },
+                    },
+                },
+            },
+        },
+    },
 }
