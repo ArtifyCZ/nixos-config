@@ -16,6 +16,7 @@
     home.stateVersion = "25.11";
 
     home.packages = with pkgs; [
+      gnumake
       nixd
       nixfmt
       nixpkgs-review

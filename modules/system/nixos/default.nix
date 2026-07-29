@@ -3,6 +3,7 @@
 {
   imports = [
     ./boot.nix
+    ./gc.nix
     ./overlays.nix
 
     "${self}/modules/system/common"
