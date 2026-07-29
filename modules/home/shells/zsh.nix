@@ -7,6 +7,7 @@
 
 let
   cfg = config.homeProfile.shells.zsh;
+  inherit (pkgs.stdenv.hostPlatform) isDarwin;
 in
 
 {
@@ -56,19 +57,26 @@ in
       };
 
       # Custom bindings & environment
-      initContent = ''
-        # Keybindings (Fixes Home/End/Delete key behaviors on macOS/Linux)
-        bindkey '^[[H' beginning-of-line
-        bindkey '^[[F' end-of-line
-        bindkey '^[[3~' delete-char
+      initContent = lib.concatStrings (
+        [
+          ''
+            # Keybindings (Fixes Home/End/Delete key behaviors on macOS/Linux)
+            bindkey '^[[H' beginning-of-line
+            bindkey '^[[F' end-of-line
+            bindkey '^[[3~' delete-char
 
-        # Substring history search (type a command prefix, then press Up/Down arrows)
-        autoload -U up-line-or-beginning-search down-line-or-beginning-search
-        zle -N up-line-or-beginning-search
-        zle -N down-line-or-beginning-search
-        bindkey '^[[A' up-line-or-beginning-search
-        bindkey '^[[B' down-line-or-beginning-search
-      '';
+            # Substring history search (type a command prefix, then press Up/Down arrows)
+            autoload -U up-line-or-beginning-search down-line-or-beginning-search
+            zle -N up-line-or-beginning-search
+            zle -N down-line-or-beginning-search
+            bindkey '^[[A' up-line-or-beginning-search
+            bindkey '^[[B' down-line-or-beginning-search
+          ''
+        ]
+        ++ (lib.optional isDarwin ''
+          export PATH="$PATH:/opt/homebrew/bin";
+        '')
+      );
     };
 
     # Starship Prompt (Fast, cross-shell prompt)
