@@ -55,6 +55,8 @@ in
         gs = "git status";
         gd = "git diff";
         gl = "git log --oneline --graph --decorate";
+        gp = "git push";
+        gpf = "git push --force-with-lease";
       };
 
       # Custom bindings & environment
