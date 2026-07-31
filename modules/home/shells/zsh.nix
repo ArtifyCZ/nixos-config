@@ -51,6 +51,7 @@ in
 
         # Quick git shortcuts
         g = "git";
+        gf = "git fetch --all";
         gs = "git status";
         gd = "git diff";
         gl = "git log --oneline --graph --decorate";
