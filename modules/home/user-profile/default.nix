@@ -16,10 +16,12 @@
     home.stateVersion = "25.11";
 
     home.packages = with pkgs; [
+      cdrkit
       gnumake
       nixd
       nixfmt
       nixpkgs-review
+      pkgsCross.i686-embedded.buildPackages.gcc
       tree
     ];
   };
