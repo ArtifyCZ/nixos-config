@@ -57,6 +57,7 @@ in
         gl = "git log --oneline --graph --decorate";
         gp = "git push";
         gpf = "git push --force-with-lease";
+        grb = "git rebase -i --autosquash";
       };
 
       # Custom bindings & environment
