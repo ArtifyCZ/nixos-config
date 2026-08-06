@@ -19,6 +19,7 @@
       cdrkit
       gnumake
       nixd
+      libllvm
       nixfmt
       nixpkgs-review
       pkgsCross.i686-embedded.buildPackages.gcc
