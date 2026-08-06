@@ -82,6 +82,7 @@ in
         ++ (lib.optional isDarwin ''
           export PATH="$PATH:/opt/homebrew/bin";
           export PATH="$PATH:$HOME/.cargo/bin";
+          export PATH="$PATH:$HOME/.dotnet/tools";
         '')
       );
     };
