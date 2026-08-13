@@ -22,6 +22,7 @@ in
             "video"
             "audio"
           ];
+          shell = pkgs.zsh;
         })
       ];
 

@@ -9,4 +9,6 @@
     "${self}/modules/system/common"
     "${self}/modules/home/bootstrap"
   ];
+
+  programs.zsh.enable = true;
 }
