@@ -4,28 +4,28 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "NixOS rebuild boot",
+            "label": "Rebuild (build)",
             "type": "shell",
-            "command": "sudo nixos-rebuild boot",
-            "problemMatcher": []
+            "command": "./rebuild build",
+            "problemMatcher": [],
         },
         {
-            "label": "NixOS rebuild switch",
+            "label": "Rebuild (switch)",
             "type": "shell",
-            "command": "sudo nixos-rebuild switch",
-            "problemMatcher": []
+            "command": "./rebuild switch",
+            "problemMatcher": [],
         },
         {
-            "label": "NixOS rebuild test",
+            "label": "Rebuild (test)",
             "type": "shell",
-            "command": "sudo nixos-rebuild test",
-            "problemMatcher": []
+            "command": "./rebuild test",
+            "problemMatcher": [],
         },
         {
             "label": "Nix update dependencies",
             "type": "shell",
             "command": "nix flake update",
-            "problemMatcher": []
-        }
+            "problemMatcher": [],
+        },
     ],
 }

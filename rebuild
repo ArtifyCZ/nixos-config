@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -e
+
+
+ACTION="${1:-switch}"
+OS="$(uname -s)"
+
+if [ "$OS" = "Darwin" ]; then
+    echo "🍎 Applying nix-darwin configuration ($ACTION)..."
+    sudo darwin-rebuild "$ACTION" --flake .
+
+elif [ "$OS" = "Linux" ]; then
+    # Check if /etc/os-release exists and contains ID=nixos
+    if [ -f /etc/os-release ] && grep -q '^ID=nixos' /etc/os-release; then
+        echo "🐧 Applying NixOS configuration ($ACTION)..."
+        sudo nixos-rebuild "$ACTION" --flake .
+    else
+        echo "Non-NixOS Linux not supported yet"
+        exit 1
+    fi
+else
+    echo "Unsupported OS: $OS"
+    exit 1
+fi
+echo "✅ Applied successfully ($ACTION)!"
