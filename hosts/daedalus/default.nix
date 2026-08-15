@@ -14,31 +14,17 @@
   imports = [
     ./disko-config.nix
     ./hardware-configuration.nix
-    ./users.nix
-
-    "${self}/users/artify"
   ];
 
-  fileSystems."/mnt/hdd" = {
-    device = "/dev/disk/by-uuid/40AC6DD0AC6DC0D0";
-    fsType = "ntfs";
-    options = [
-      "defaults"
-      "nofail"
-    ];
-  };
-
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.grub.device = "nodev";
-  boot.loader.grub.efiSupport = true;
-
-  networking.hostName = "artifydesktop";
+  networking.hostName = "daedalus";
 
   # Configure network connections interactively with nmcli or nmtui.
   networking.networkmanager.enable = true;
 
   # Set your time zone.
   time.timeZone = "Europe/Prague";
+
+  #boot.loader.grub.device = "/dev/sda";
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
@@ -51,18 +37,6 @@
   #   keyMap = "us";
   #   useXkbConfig = true; # use xkb.options in tty.
   # };
-
-  # Enable the X11 windowing system.
-  services.xserver.enable = true;
-
-  services.displayManager.gdm.enable = true;
-  services.desktopManager.gnome.enable = true;
-
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
-  };
 
   # Enable CUPS to print documents.
   # services.printing.enable = true;
@@ -82,18 +56,13 @@
   # You can use https://search.nixos.org/ to find more packages (and options).
   environment.systemPackages = with pkgs; [
     fastfetch
-    gnome-tweaks
     gnumake
-    vulkan-tools
     wget
   ];
 
-  programs.firefox.enable = true;
   programs.git.enable = true;
   programs.nix-ld.enable = true;
   programs.vim.enable = true;
-  programs.steam.enable = true;
-  programs.xwayland.enable = true;
 
   nix.settings.experimental-features = [
     "nix-command"
@@ -121,7 +90,8 @@
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
-  # services.openssh.enable = true;
+  services.openssh.enable = true;
+  services.openssh.settings.PasswordAuthentication = false;
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
@@ -151,34 +121,8 @@
   # and migrated your data accordingly.
   #
   # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
-  system.stateVersion = "25.11"; # Did you read the comment?
+  system.stateVersion = "26.05"; # Did you read the comment?
 
   # Allow unfree packages (required for Nvidia drivers)
   nixpkgs.config.allowUnfree = true;
-
-  # Enable Graphics
-  hardware.graphics = {
-    enable = true;
-    enable32Bit = true;
-  };
-
-  # Load nvidia driver for Xorg and Wayland
-  services.xserver.videoDrivers = [ "nvidia" ];
-
-  hardware.nvidia = {
-    # Modesetting is required for Wayland and most modern compositors
-    modesetting.enable = true;
-
-    # Nvidia power management, can cause issues with sleep/suspend
-    powerManagement.enable = false;
-
-    # Use the official Nvidia drivers (not noveau)
-    open = true;
-
-    # Enable the Nvidia settings menu
-    nvidiaSettings = true;
-
-    # Choose the driver version
-    package = config.boot.kernelPackages.nvidiaPackages.stable;
-  };
 }

@@ -1,6 +1,7 @@
 { pkgs, lib, ... }:
 let
   inherit (pkgs.stdenv.hostPlatform) isDarwin isLinux;
+  sshKeys = builtins.readDir ./ssh-keys;
 in
 
 {
@@ -9,6 +10,7 @@ in
       users.users.artify = lib.mkMerge [
         {
           description = "Richard Tichy";
+          openssh.authorizedKeys.keys = (builtins.attrValues sshKeys);
         }
         (lib.mkIf isDarwin {
           home = "/Users/artify";

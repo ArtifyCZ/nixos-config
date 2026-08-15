@@ -57,5 +57,15 @@
           "${self}/users/artify"
         ];
       };
+
+      nixosConfigurations.daedalus = mkSystem {
+        system = "x86_64-linux";
+        hostModules = [
+          "${self}/hosts/daedalus"
+        ];
+        userModules = [
+          "${self}/users/artify"
+        ];
+      };
     };
 }
