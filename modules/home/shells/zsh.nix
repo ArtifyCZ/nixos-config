@@ -52,12 +52,15 @@ in
         # Quick git shortcuts
         g = "git";
         gf = "git fetch --all";
+        glog = "git log";
         gs = "git status";
         gd = "git diff";
         gl = "git log --oneline --graph --decorate";
         gp = "git push";
         gpf = "git push --force-with-lease";
+        gpull = "git pull --ff-only";
         grb = "git rebase -i --autosquash";
+        gst = "git stash";
       };
 
       # Custom bindings & environment
