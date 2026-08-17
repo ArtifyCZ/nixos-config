@@ -24,6 +24,7 @@ in
           cinny-desktop
           discord
           element-desktop
+          jetbrains.rider
           obsidian
           openttd-jgrpp
           prismlauncher
