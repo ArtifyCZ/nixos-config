@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -11,4 +11,6 @@
   # DO NOT CHANGE!
   # This is for backwards compatibility.
   system.stateVersion = 7;
+
+  environment.systemPackages = with pkgs; [ qemu ];
 }
