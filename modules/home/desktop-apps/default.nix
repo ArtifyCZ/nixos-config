@@ -24,6 +24,7 @@ in
           cinny-desktop
           discord
           element-desktop
+          heroic
           jetbrains.rider
           obsidian
           openttd-jgrpp
