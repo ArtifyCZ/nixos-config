@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -22,24 +21,20 @@
     {
       self,
       nixpkgs,
-      nixpkgs-unstable,
       nix-darwin,
       ...
     }@inputs:
     let
-      mkSystem = import ./lib/mkSystem.nix {
-        inherit
-          inputs
-          self
-          nixpkgs
-          nixpkgs-unstable
-          ;
+      mkHost = import ./lib/mkHost.nix {
+        inherit inputs self;
       };
     in
 
     {
-      darwinConfigurations."Richards-MacBook-Pro" = mkSystem {
-        system = "aarch64-darwin";
+      darwinConfigurations."Richards-MacBook-Pro" = mkHost {
+        class = "darwin";
+        hostPlatform.system = "aarch64-darwin";
+        inherit nixpkgs;
         hostModules = [
           "${self}/hosts/Richards-MacBook-Pro"
         ];
@@ -48,8 +43,10 @@
         ];
       };
 
-      nixosConfigurations.artifydesktop = mkSystem {
-        system = "x86_64-linux";
+      nixosConfigurations.artifydesktop = mkHost {
+        class = "nixos";
+        hostPlatform.system = "x86_64-linux";
+        inherit nixpkgs;
         hostModules = [
           "${self}/hosts/artifydesktop"
         ];
@@ -58,8 +55,10 @@
         ];
       };
 
-      nixosConfigurations.daedalus = mkSystem {
-        system = "x86_64-linux";
+      nixosConfigurations.daedalus = mkHost {
+        class = "nixos";
+        hostPlatform.system = "x86_64-linux";
+        inherit nixpkgs;
         hostModules = [
           "${self}/hosts/daedalus"
         ];

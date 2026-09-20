@@ -2,9 +2,8 @@
   config,
   inputs,
   lib,
-  pkgs-unstable,
   self,
-  system,
+  class,
   ...
 }:
 
@@ -12,10 +11,10 @@ let
   homeManagerModule =
     with inputs.home-manager;
     {
-      "aarch64-darwin" = darwinModules.home-manager;
-      "x86_64-linux" = nixosModules.home-manager;
+      darwin = darwinModules.home-manager;
+      nixos = nixosModules.home-manager;
     }
-    ."${system}";
+    ."${class}";
 in
 
 {
@@ -33,10 +32,7 @@ in
     useGlobalPkgs = true;
     useUserPackages = true;
     extraSpecialArgs = {
-      inherit
-        self
-        pkgs-unstable
-        ;
+      inherit self;
     };
     sharedModules = [
       "${self}/modules/home/user-profile"
