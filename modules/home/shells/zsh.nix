@@ -51,6 +51,7 @@ in
 
         # Quick git shortcuts
         g = "git";
+        ga = "git add";
         gco = "git checkout";
         gf = "git fetch --all";
         glog = "git log";
