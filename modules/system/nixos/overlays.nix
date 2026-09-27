@@ -11,5 +11,37 @@
     #     };
     #   });
     # })
+
+    (
+      final: prev:
+      let
+        inherit (final)
+          stoat-desktop
+          stdenv
+          writeShellScriptBin
+          ;
+        name = "velotown-stoat";
+        desktopName = "Velotown Stoat";
+        stoatInstanceUrl = "https://chat.infestednetwork.com/";
+        exec = "${stoat-desktop}/bin/stoat-desktop --force-server=\"${stoatInstanceUrl}\"";
+        script = (writeShellScriptBin "${name}" "${exec} \$@");
+        stoatDesktopEntry = builtins.elemAt stoat-desktop.desktopItems 0;
+        desktopEntry = stoatDesktopEntry.override {
+          inherit name desktopName exec;
+        };
+      in
+      {
+        "${name}" = stdenv.mkDerivation {
+          inherit name;
+          buildCommand = ''
+            mkdir -p $out/bin
+            cp ${script}/bin/${name} $out/bin/
+            mkdir -p $out/share/applications
+            cp ${desktopEntry}/share/applications/${name}.desktop $out/share/applications/
+          '';
+          dontBuild = true;
+        };
+      }
+    )
   ];
 }

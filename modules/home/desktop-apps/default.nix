@@ -32,6 +32,7 @@ in
           remmina
           signal-desktop
           tor-browser
+          velotown-stoat
           vlc
           vscode
         ])
