@@ -15,7 +15,7 @@ let
   systemModules =
     {
       darwin = [
-        "${self}/modules/system/darwin"
+        "${self}/modules/home/bootstrap"
       ];
       nixos = [
         "${self}/modules/system/nixos"
