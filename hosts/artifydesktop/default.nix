@@ -130,6 +130,7 @@
   programs.vim.enable = true;
   programs.steam.enable = true;
   programs.xwayland.enable = true;
+  programs.zsh.enable = true;
 
   nix.settings.experimental-features = [
     "nix-command"

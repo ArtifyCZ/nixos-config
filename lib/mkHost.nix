@@ -18,7 +18,7 @@ let
         "${self}/modules/home/bootstrap"
       ];
       nixos = [
-        "${self}/modules/system/nixos"
+        "${self}/modules/home/bootstrap"
       ];
     }
     ."${class}";
