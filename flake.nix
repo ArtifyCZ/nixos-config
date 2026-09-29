@@ -19,6 +19,10 @@
       url = "github:nix-darwin/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -43,6 +47,10 @@
         systems = [
           "aarch64-darwin"
           "x86_64-linux"
+        ];
+
+        imports = [
+          inputs.treefmt-nix.flakeModule
         ];
 
         flake = {
@@ -80,6 +88,16 @@
             userModules = [
               "${self}/users/artify"
             ];
+          };
+        };
+
+        perSystem = _: {
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              keep-sorted.enable = true;
+              nixfmt.enable = true;
+            };
           };
         };
       };
