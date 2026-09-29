@@ -139,6 +139,12 @@
   # accidentally delete configuration.nix.
   # system.copySystemConfiguration = true;
 
+  nix.gc.automatic = false;
+  nix.gc.options = "--delete-older-than 14d";
+  nix.gc.dates = "*-*-* *:00:00";
+  nix.gc.persistent = true;
+  nix.gc.randomizedDelaySec = "45min";
+
   # This option defines the first version of NixOS you have installed on this particular machine,
   # and is used to maintain compatibility with application data (e.g. databases) created on older NixOS versions.
   #
