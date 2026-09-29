@@ -14,6 +14,7 @@
   imports = [
     ./disko-config.nix
     ./hardware-configuration.nix
+    ./overlays.nix
     ./users.nix
 
     "${self}/users/artify"

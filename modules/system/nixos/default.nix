@@ -2,8 +2,6 @@
 
 {
   imports = [
-    ./overlays.nix
-
     "${self}/modules/home/bootstrap"
   ];
 
