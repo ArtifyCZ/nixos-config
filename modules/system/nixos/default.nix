@@ -2,7 +2,6 @@
 
 {
   imports = [
-    ./boot.nix
     ./gc.nix
     ./overlays.nix
 
