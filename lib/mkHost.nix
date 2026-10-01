@@ -7,7 +7,6 @@
   class,
   hostPlatform,
   nixpkgs,
-  userModules,
   hostModules,
 }:
 
@@ -27,7 +26,6 @@ let
   ]
   ++ nixpkgs.lib.concatLists [
     systemModules
-    userModules
     hostModules
   ];
 

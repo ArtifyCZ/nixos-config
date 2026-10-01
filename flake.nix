@@ -63,9 +63,6 @@
             hostModules = [
               "${self}/hosts/Richards-MacBook-Pro"
             ];
-            userModules = [
-              "${self}/users/artify"
-            ];
           };
 
           nixosConfigurations.artifydesktop = mkHost {
@@ -75,9 +72,6 @@
             hostModules = [
               "${self}/hosts/artifydesktop"
             ];
-            userModules = [
-              "${self}/users/artify"
-            ];
           };
 
           nixosConfigurations.daedalus = mkHost {
@@ -86,9 +80,6 @@
             inherit nixpkgs;
             hostModules = [
               "${self}/hosts/daedalus"
-            ];
-            userModules = [
-              "${self}/users/artify"
             ];
           };
         };

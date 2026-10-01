@@ -14,6 +14,7 @@
   imports = [
     ./disko-config.nix
     ./hardware-configuration.nix
+    ./users.nix
   ];
 
   # Disable systemd-boot
