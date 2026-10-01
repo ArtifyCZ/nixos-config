@@ -57,23 +57,12 @@
         ];
 
         imports = [
-          inputs.treefmt-nix.flakeModule
-
           # keep-sorted start case=no
           ./hosts/artifydesktop/host.nix
           ./hosts/daedalus/host.nix
           ./hosts/Richards-MacBook-Pro/host.nix
+          ./modules/flake/treefmt.nix
           # keep-sorted end
         ];
-
-        perSystem = _: {
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              keep-sorted.enable = true;
-              nixfmt.enable = true;
-            };
-          };
-        };
       };
 }
