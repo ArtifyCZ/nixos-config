@@ -36,14 +36,19 @@
       ...
     }@inputs:
     let
-      mkHost = import ./lib/mkHost.nix {
+      projectLib.mkHost = import ./lib/mkHost.nix {
         inherit inputs self;
       };
     in
 
     flake-parts.lib.mkFlake
       {
-        inherit inputs self;
+        inherit inputs;
+        specialArgs = {
+          inherit
+            projectLib
+            ;
+        };
       }
       {
         systems = [
@@ -53,36 +58,13 @@
 
         imports = [
           inputs.treefmt-nix.flakeModule
+
+          # keep-sorted start case=no
+          ./hosts/artifydesktop/host.nix
+          ./hosts/daedalus/host.nix
+          ./hosts/Richards-MacBook-Pro/host.nix
+          # keep-sorted end
         ];
-
-        flake = {
-          darwinConfigurations."Richards-MacBook-Pro" = mkHost {
-            class = "darwin";
-            hostPlatform.system = "aarch64-darwin";
-            inherit nixpkgs;
-            hostModules = [
-              "${self}/hosts/Richards-MacBook-Pro"
-            ];
-          };
-
-          nixosConfigurations.artifydesktop = mkHost {
-            class = "nixos";
-            hostPlatform.system = "x86_64-linux";
-            inherit nixpkgs;
-            hostModules = [
-              "${self}/hosts/artifydesktop"
-            ];
-          };
-
-          nixosConfigurations.daedalus = mkHost {
-            class = "nixos";
-            hostPlatform.system = "x86_64-linux";
-            inherit nixpkgs;
-            hostModules = [
-              "${self}/hosts/daedalus"
-            ];
-          };
-        };
 
         perSystem = _: {
           treefmt = {
