@@ -64,6 +64,9 @@ in
         gpull = "git pull --ff-only";
         grb = "git rebase -i --autosquash";
         gst = "git stash";
+
+        # Quick Nix shortcuts
+        nd = "nix develop -c zsh"; # Inherits shortcuts and other Zsh config from home (this file)
       };
 
       # Custom bindings & environment
