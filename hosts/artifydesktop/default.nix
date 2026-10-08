@@ -118,6 +118,7 @@
     fastfetch
     gnome-tweaks
     gnumake
+    qemu
     vulkan-tools
     wget
   ];
