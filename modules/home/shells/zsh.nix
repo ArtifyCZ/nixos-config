@@ -121,6 +121,13 @@ in
       };
     };
 
+    # DirEnv - custom shell per directory
+    programs.direnv = {
+        enable = true;
+        enableZshIntegration = true;
+        nix-direnv.enable = true;
+    };
+
     # Zoxide (Smarter 'cd')
     programs.zoxide = {
       enable = true;
