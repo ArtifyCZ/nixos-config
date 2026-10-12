@@ -25,6 +25,7 @@ in
           discord
           element-desktop
           heroic
+          jetbrains.clion
           jetbrains.rider
           obsidian
           openttd-jgrpp
