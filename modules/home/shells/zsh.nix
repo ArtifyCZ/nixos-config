@@ -146,6 +146,7 @@ in
     home.packages = with pkgs; [
       eza # Modern ls
       bat # Syntax-highlighted cat
+      devenv
       fd # Fast file finder
       ripgrep # Fast text searching
       fzf # Fuzzy finder UI
