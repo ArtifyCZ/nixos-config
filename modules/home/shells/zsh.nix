@@ -123,9 +123,9 @@ in
 
     # DirEnv - custom shell per directory
     programs.direnv = {
-        enable = true;
-        enableZshIntegration = true;
-        nix-direnv.enable = true;
+      enable = true;
+      enableZshIntegration = true;
+      nix-direnv.enable = true;
     };
 
     # Zoxide (Smarter 'cd')
