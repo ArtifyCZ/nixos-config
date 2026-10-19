@@ -1,2 +1,4 @@
 # [2026-07-28] refactor: apply nixfmt
 9696d7f39d9e4ba3602fc8b1c1e6287931516a26
+# [2026-10-19] refactor: format zsh.nix
+4d1e15b6c770549a446fdcfa8503a186d2fa0c6e
