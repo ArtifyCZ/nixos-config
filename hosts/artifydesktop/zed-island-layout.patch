@@ -1,0 +1,3075 @@
+diff --git a/assets/settings/default.json b/assets/settings/default.json
+index bbe2552..9ad9916 100644
+--- a/assets/settings/default.json
++++ b/assets/settings/default.json
+@@ -1464,6 +1464,19 @@
+   "autosave": "off",
+   // Maximum number of tabs per pane. Unset for unlimited.
+   "max_tabs": null,
++  // Settings related to the floating island layout and rounded corners.
++  "island_layout": {
++    // Whether or not to enable the floating island card layout.
++    "enabled": false,
++    // The corner radius in pixels for floating cards and dock panels.
++    "corner_radius": 18.0,
++    // The gap spacing in pixels between floating cards, panes, and window borders.
++    "gap": 8.0,
++    // Whether or not to show subtle border outlines on floating cards.
++    "border": true,
++    // Whether or not to render editor tabs as floating rounded pill chips.
++    "pill_tabs": true
++  },
+   // Settings related to the editor's tab bar.
+   "tab_bar": {
+     // Whether or not to show the tab bar in the editor
+diff --git a/crates/agent_ui/src/agent_panel.rs b/crates/agent_ui/src/agent_panel.rs
+index 171c256..2269821 100644
+--- a/crates/agent_ui/src/agent_panel.rs
++++ b/crates/agent_ui/src/agent_panel.rs
+@@ -6611,11 +6611,26 @@ impl Render for AgentPanel {
+         // - Font size works as expected and can be changed with cmd-+/cmd-
+         // - Scrolling in all views works as expected
+         // - Files can be dropped into the panel
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++            px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++        } else {
++            px(0.)
++        };
++
+         let content = v_flex()
+             .key_context(self.key_context())
+             .relative()
+             .size_full()
+             .justify_between()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded(corner_radius))
+             .track_focus(&self.focus_handle)
+             .bg(cx.theme().colors().panel_background)
+             .on_action(cx.listener(|this, action: &NewThread, window, cx| {
+diff --git a/crates/agent_ui/src/conversation_view/thread_view.rs b/crates/agent_ui/src/conversation_view/thread_view.rs
+index 5789f12..ff28457 100644
+--- a/crates/agent_ui/src/conversation_view/thread_view.rs
++++ b/crates/agent_ui/src/conversation_view/thread_view.rs
+@@ -5044,9 +5044,24 @@ impl ThreadView {
+                 )
+         });
+ 
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++            px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++        } else {
++            px(0.)
++        };
++
+         h_flex()
+             .py_2()
+             .bg(editor_bg_color)
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded_b(corner_radius))
+             .justify_center()
+             .on_action(cx.listener(Self::handle_message_editor_move_up))
+             .map(|this| {
+diff --git a/crates/debugger_ui/src/debugger_panel.rs b/crates/debugger_ui/src/debugger_panel.rs
+index e980e0a..30a1f81 100644
+--- a/crates/debugger_ui/src/debugger_panel.rs
++++ b/crates/debugger_ui/src/debugger_panel.rs
+@@ -1911,8 +1911,7 @@ impl Render for DebugPanel {
+                                             .size_full()
+                                             .child(breakpoint_list)
+                                             .child(Divider::vertical().h_full())
+-                                            .child(welcome_experience)
+-                                            .child(Divider::vertical().h_full()),
++                                            .child(welcome_experience),
+                                     )
+                                 } else {
+                                     this.child(
+diff --git a/crates/editor/src/element.rs b/crates/editor/src/element.rs
+index 77aa1db..0e13427 100644
+--- a/crates/editor/src/element.rs
++++ b/crates/editor/src/element.rs
+@@ -5022,11 +5022,64 @@ impl EditorElement {
+         window.paint_layer(layout.hitbox.bounds, |window| {
+             let scroll_top = layout.position_map.scroll_position.y;
+             let gutter_bg = cx.theme().colors().editor_gutter_background;
+-            window.paint_quad(fill(layout.gutter_hitbox.bounds, gutter_bg));
+-            window.paint_quad(fill(
+-                layout.position_map.text_hitbox.bounds,
+-                self.style.background,
+-            ));
++            let island_layout = cx.try_global::<settings::SettingsStore>().and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++            let is_island = island_layout.is_some_and(|l| l.enabled.unwrap_or(false));
++            let radius = if is_island {
++                px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++            } else {
++                px(0.)
++            };
++
++            let (corner_radii, gutter_corner_radii) = if is_island {
++                let has_gutter = !layout.gutter_hitbox.bounds.is_empty();
++                (
++                    Corners {
++                        top_left: px(0.),
++                        top_right: px(0.),
++                        bottom_right: radius,
++                        bottom_left: if has_gutter { px(0.) } else { radius },
++                    },
++                    Corners {
++                        top_left: px(0.),
++                        top_right: px(0.),
++                        bottom_right: px(0.),
++                        bottom_left: radius,
++                    },
++                )
++            } else {
++                (Corners::default(), Corners::default())
++            };
++
++            if is_island {
++                window.paint_quad(
++                    fill(layout.hitbox.bounds, self.style.background).corner_radii(Corners {
++                        top_left: px(0.),
++                        top_right: px(0.),
++                        bottom_right: radius,
++                        bottom_left: radius,
++                    }),
++                );
++            }
++
++            if !layout.gutter_hitbox.bounds.is_empty() {
++                window.paint_quad(
++                    fill(layout.gutter_hitbox.bounds, gutter_bg).corner_radii(gutter_corner_radii),
++                );
++            }
++
++            if !is_island {
++                window.paint_quad(
++                    fill(
++                        layout.position_map.text_hitbox.bounds,
++                        self.style.background,
++                    )
++                    .corner_radii(corner_radii),
++                );
++            }
+ 
+             if matches!(
+                 layout.mode,
+@@ -5090,7 +5143,27 @@ impl EditorElement {
+                                         * (end_row - start_row.0 + 1) as f32,
+                                 ),
+                             };
+-                            window.paint_quad(fill(bounds, active_line_bg));
++                            let active_line_corners = if is_island
++                                && bounds.bottom() >= layout.hitbox.bottom() - px(2.)
++                            {
++                                Corners {
++                                    top_left: px(0.),
++                                    top_right: px(0.),
++                                    bottom_left: if bounds.left() <= layout.hitbox.left() + px(1.) {
++                                        radius
++                                    } else {
++                                        px(0.)
++                                    },
++                                    bottom_right: if bounds.right() >= layout.hitbox.right() - px(1.) {
++                                        radius
++                                    } else {
++                                        px(0.)
++                                    },
++                                }
++                            } else {
++                                Corners::default()
++                            };
++                            window.paint_quad(fill(bounds, active_line_bg).corner_radii(active_line_corners));
+                         }
+                     }
+                 }
+@@ -5119,10 +5192,27 @@ impl EditorElement {
+                         layout.position_map.line_height
+                             * highlight_row_end.next_row().minus(highlight_row_start) as f32,
+                     );
+-                    let mut quad = fill(Bounds { origin, size }, highlight.background);
++                    let bounds = Bounds { origin, size };
++                    let mut quad = fill(bounds, highlight.background);
+                     if let Some(border_color) = highlight.border {
+                         quad.border_color = border_color;
+-                        quad.border_widths = edges
++                        quad.border_widths = edges;
++                    }
++                    if is_island && bounds.bottom() >= layout.hitbox.bottom() - px(2.) {
++                        quad.corner_radii = Corners {
++                            top_left: px(0.),
++                            top_right: px(0.),
++                            bottom_left: if bounds.left() <= layout.hitbox.left() + px(1.) {
++                                radius
++                            } else {
++                                px(0.)
++                            },
++                            bottom_right: if bounds.right() >= layout.hitbox.right() - px(1.) {
++                                radius
++                            } else {
++                                px(0.)
++                            },
++                        };
+                     }
+                     window.paint_quad(quad);
+                 };
+@@ -6094,6 +6184,19 @@ impl EditorElement {
+         for (scrollbar_layout, axis) in scrollbars_layout.iter_scrollbars() {
+             let hitbox = &scrollbar_layout.hitbox;
+             if scrollbars_layout.visible {
++                let island_layout = cx
++                    .try_global::<settings::SettingsStore>()
++                    .and_then(|s| {
++                        s.raw_user_settings()
++                            .and_then(|u| u.content.workspace.island_layout.as_ref())
++                            .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++                    });
++                let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++                    px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++                } else {
++                    px(0.)
++                };
++
+                 let scrollbar_edges = match axis {
+                     ScrollbarAxis::Horizontal => Edges {
+                         top: Pixels::ZERO,
+@@ -6105,14 +6208,39 @@ impl EditorElement {
+                         top: Pixels::ZERO,
+                         right: Pixels::ZERO,
+                         bottom: Pixels::ZERO,
+-                        left: ScrollbarLayout::BORDER_WIDTH,
++                        left: if corner_radius > px(0.) {
++                            Pixels::ZERO
++                        } else {
++                            ScrollbarLayout::BORDER_WIDTH
++                        },
+                     },
+                 };
+ 
+-                window.paint_layer(hitbox.bounds, |window| {
++                let mut hitbox_bounds = hitbox.bounds;
++                if corner_radius > px(0.) {
++                    match axis {
++                        ScrollbarAxis::Vertical => {
++                            hitbox_bounds.size.width -= px(2.);
++                            hitbox_bounds.size.height -= corner_radius;
++                        }
++                        ScrollbarAxis::Horizontal => {
++                            hitbox_bounds.origin.x += corner_radius;
++                            hitbox_bounds.size.width -= corner_radius * 2.0;
++                            hitbox_bounds.size.height -= px(2.);
++                        }
++                    }
++                }
++
++                let track_corners = if corner_radius > px(0.) {
++                    Corners::all(px(4.))
++                } else {
++                    Corners::default()
++                };
++
++                window.paint_layer(hitbox_bounds, |window| {
+                     window.paint_quad(quad(
+-                        hitbox.bounds,
+-                        Corners::default(),
++                        hitbox_bounds,
++                        track_corners,
+                         cx.theme().colors().scrollbar_track_background,
+                         scrollbar_edges,
+                         cx.theme().colors().scrollbar_track_border,
+@@ -6134,7 +6262,7 @@ impl EditorElement {
+                         }
+                     }
+ 
+-                    if let Some(thumb_bounds) = scrollbar_layout.thumb_bounds {
++                    if let Some(mut thumb_bounds) = scrollbar_layout.thumb_bounds {
+                         let scrollbar_thumb_color = match scrollbar_layout.thumb_state {
+                             ScrollbarThumbState::Dragging => {
+                                 cx.theme().colors().scrollbar_thumb_active_background
+@@ -6146,9 +6274,35 @@ impl EditorElement {
+                                 cx.theme().colors().scrollbar_thumb_background
+                             }
+                         };
++                        if corner_radius > px(0.) {
++                            match axis {
++                                ScrollbarAxis::Vertical => {
++                                    thumb_bounds.size.width -= px(2.);
++                                    if thumb_bounds.bottom() > hitbox_bounds.bottom() {
++                                        thumb_bounds.origin.y =
++                                            hitbox_bounds.bottom() - thumb_bounds.size.height;
++                                    }
++                                }
++                                ScrollbarAxis::Horizontal => {
++                                    thumb_bounds.size.height -= px(2.);
++                                    if thumb_bounds.right() > hitbox_bounds.right() {
++                                        thumb_bounds.origin.x =
++                                            hitbox_bounds.right() - thumb_bounds.size.width;
++                                    }
++                                    if thumb_bounds.left() < hitbox_bounds.left() {
++                                        thumb_bounds.origin.x = hitbox_bounds.left();
++                                    }
++                                }
++                            }
++                        }
++                        let thumb_corners = if corner_radius > px(0.) {
++                            Corners::all(px(3.))
++                        } else {
++                            Corners::default()
++                        };
+                         window.paint_quad(quad(
+                             thumb_bounds,
+-                            Corners::default(),
++                            thumb_corners,
+                             scrollbar_thumb_color,
+                             scrollbar_edges,
+                             cx.theme().colors().scrollbar_thumb_border,
+@@ -6644,13 +6798,31 @@ impl EditorElement {
+ 
+     fn paint_minimap(&self, layout: &mut EditorLayout, window: &mut Window, cx: &mut App) {
+         if let Some(mut layout) = layout.minimap.take() {
++            let island_layout = cx
++                .try_global::<settings::SettingsStore>()
++                .and_then(|s| {
++                    s.raw_user_settings()
++                        .and_then(|u| u.content.workspace.island_layout.as_ref())
++                        .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++                });
++            let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++                px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++            } else {
++                px(0.)
++            };
++
++            let mut minimap_bounds = layout.thumb_layout.hitbox.bounds;
++            if corner_radius > px(0.) {
++                minimap_bounds.size.height -= corner_radius;
++            }
++
+             let minimap_hitbox = layout.thumb_layout.hitbox.clone();
+             let dragging_minimap = self.editor.read(cx).scroll_manager.is_dragging_minimap();
+ 
+-            window.paint_layer(layout.thumb_layout.hitbox.bounds, |window| {
++            window.paint_layer(minimap_bounds, |window| {
+                 window.with_element_namespace("minimap", |window| {
+                     layout.minimap.paint(window, cx);
+-                    if let Some(thumb_bounds) = layout.thumb_layout.thumb_bounds {
++                    if let Some(mut thumb_bounds) = layout.thumb_layout.thumb_bounds {
+                         let minimap_thumb_color = match layout.thumb_layout.thumb_state {
+                             ScrollbarThumbState::Idle => {
+                                 cx.theme().colors().minimap_thumb_background
+@@ -6683,10 +6855,20 @@ impl EditorElement {
+                             MinimapThumbBorder::None => Default::default(),
+                         };
+ 
+-                        window.paint_layer(minimap_hitbox.bounds, |window| {
++                        if corner_radius > px(0.) && thumb_bounds.bottom() > minimap_bounds.bottom() {
++                            thumb_bounds.origin.y =
++                                minimap_bounds.bottom() - thumb_bounds.size.height;
++                        }
++                        let thumb_corners = if corner_radius > px(0.) {
++                            Corners::all(px(3.))
++                        } else {
++                            Corners::default()
++                        };
++
++                        window.paint_layer(minimap_bounds, |window| {
+                             window.paint_quad(quad(
+                                 thumb_bounds,
+-                                Corners::default(),
++                                thumb_corners,
+                                 minimap_thumb_color,
+                                 minimap_thumb_border,
+                                 cx.theme().colors().minimap_thumb_border,
+diff --git a/crates/git_ui/src/commit_view.rs b/crates/git_ui/src/commit_view.rs
+index fb3a0f1..edd8577 100644
+--- a/crates/git_ui/src/commit_view.rs
++++ b/crates/git_ui/src/commit_view.rs
+@@ -1385,10 +1385,19 @@ impl Render for CommitView {
+     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+         let is_stash = self.stash.is_some();
+ 
++        let island_layout = workspace::WorkspaceSettings::get_global(cx).island_layout;
++        let corner_radius = if island_layout.enabled {
++            px(island_layout.corner_radius)
++        } else {
++            px(0.)
++        };
++
+         v_flex()
+             .key_context(if is_stash { "StashDiff" } else { "CommitDiff" })
+             .on_action(cx.listener(Self::open_file_at_head_action))
+             .size_full()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded_b(corner_radius))
+             .bg(cx.theme().colors().editor_background)
+             .child(self.render_header(window, cx))
+             .when(
+diff --git a/crates/git_ui/src/git_graph.rs b/crates/git_ui/src/git_graph.rs
+index f70188f..90bddc1 100644
+--- a/crates/git_ui/src/git_graph.rs
++++ b/crates/git_ui/src/git_graph.rs
+@@ -18,13 +18,14 @@ use git::{
+     status::{FileStatus, StatusCode, TrackedStatus},
+ };
+ use gpui::{
+-    Action, Anchor, AnyElement, App, Bounds, ClickEvent, ClipboardItem, DefiniteLength,
++    Action, Anchor, AnyElement, App, Bounds, ClickEvent, ClipboardItem, Corners, DefiniteLength,
+     DismissEvent, DragMoveEvent, ElementId, Empty, Entity, EventEmitter, FocusHandle, Focusable,
+     Hsla, MouseButton, MouseDownEvent, PathBuilder, Pixels, Point, ScrollHandle, ScrollStrategy,
+     ScrollWheelEvent, SharedString, Subscription, Task, TextRun, TextStyleRefinement,
+     UniformListScrollHandle, WeakEntity, Window, actions, anchored, deferred, point, prelude::*,
+     px, uniform_list,
+ };
++use settings::Settings as _;
+ use language::line_diff;
+ use markdown::{Markdown, MarkdownElement};
+ use menu::{Cancel, SelectFirst, SelectLast, SelectNext, SelectPrevious};
+@@ -3142,9 +3143,18 @@ impl GitGraph {
+                 cx.notify();
+             }));
+ 
++        let island_layout = workspace::WorkspaceSettings::get_global(cx).island_layout;
++        let corner_radius = if island_layout.enabled {
++            px(island_layout.corner_radius)
++        } else {
++            px(0.)
++        };
++
+         v_flex()
+             .min_w(px(300.))
+             .h_full()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded_br(corner_radius))
+             .bg(cx.theme().colors().editor_background)
+             .flex_basis(DefiniteLength::Fraction(
+                 self.commit_details_split_state.read(cx).right_ratio(),
+@@ -3611,6 +3621,13 @@ impl GitGraph {
+                         theme.colors().element_hover
+                     };
+ 
++                    let island_layout = workspace::WorkspaceSettings::get_global(cx).island_layout;
++                    let corner_radius = if island_layout.enabled {
++                        px(island_layout.corner_radius)
++                    } else {
++                        px(0.)
++                    };
++
+                     for visible_row_idx in 0..rows.len() {
+                         let absolute_row_idx = first_visible_row + visible_row_idx;
+                         let is_hovered = hovered_entry_idx == Some(absolute_row_idx);
+@@ -3634,7 +3651,19 @@ impl GitGraph {
+                             } else {
+                                 hover_bg
+                             };
+-                            window.paint_quad(gpui::fill(row_bounds, bg_color));
++                            let corner_radii = if corner_radius > px(0.)
++                                && row_bounds.bottom() >= bounds.bottom() - px(2.)
++                            {
++                                Corners {
++                                    top_left: px(0.),
++                                    top_right: px(0.),
++                                    bottom_left: corner_radius,
++                                    bottom_right: px(0.),
++                                }
++                            } else {
++                                Corners::default()
++                            };
++                            window.paint_quad(gpui::fill(row_bounds, bg_color).corner_radii(corner_radii));
+                         }
+                     }
+ 
+@@ -4464,6 +4493,15 @@ impl Render for GitGraph {
+                                         .child(self.render_graph_canvas(window, cx)),
+                                 );
+ 
++                            let island_layout =
++                                workspace::WorkspaceSettings::get_global(cx).island_layout;
++                            let corner_radius = if island_layout.enabled {
++                                px(island_layout.corner_radius)
++                            } else {
++                                px(0.)
++                            };
++                            let commit_details_open = self.selected_entry_idx.is_some();
++
+                             let commits_table = Table::new(4)
+                                 .interactable(&self.table_interaction_state)
+                                 .hide_row_borders()
+@@ -4489,8 +4527,18 @@ impl Render for GitGraph {
+                                         cx.theme().colors().element_hover
+                                     };
+ 
++                                    let is_last_row = index + 1 == commit_count;
++                                    let round_bl = corner_radius > px(0.)
++                                        && is_last_row
++                                        && (is_path_history || !graph_visible);
++                                    let round_br = corner_radius > px(0.)
++                                        && is_last_row
++                                        && !commit_details_open;
++
+                                     row.h(row_height)
+                                         .cursor_pointer()
++                                        .when(round_bl, |row| row.rounded_bl(corner_radius))
++                                        .when(round_br, |row| row.rounded_br(corner_radius))
+                                         .when(is_selected || is_context_menu_target, |row| {
+                                             row.bg(selected_bg)
+                                         })
+@@ -4673,10 +4721,19 @@ impl Render for GitGraph {
+                 })
+         };
+ 
++        let island_layout = workspace::WorkspaceSettings::get_global(cx).island_layout;
++        let corner_radius = if island_layout.enabled {
++            px(island_layout.corner_radius)
++        } else {
++            px(0.)
++        };
++
+         div()
+             .key_context("GitGraph")
+             .track_focus(&self.focus_handle)
+             .size_full()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded_b(corner_radius))
+             .bg(cx.theme().colors().editor_background)
+             .on_action(cx.listener(|this, _: &OpenCommitView, window, cx| {
+                 this.open_selected_commit_view(window, cx);
+diff --git a/crates/git_ui/src/git_panel.rs b/crates/git_ui/src/git_panel.rs
+index 28df7ea..c6e1731 100644
+--- a/crates/git_ui/src/git_panel.rs
++++ b/crates/git_ui/src/git_panel.rs
+@@ -7083,11 +7083,26 @@ impl GitPanel {
+         let workspace = self.workspace.clone();
+         let this = cx.entity();
+ 
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++            px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++        } else {
++            px(0.)
++        };
++
+         Some(
+             h_flex()
+                 .p_1p5()
+                 .gap_1p5()
+                 .justify_between()
++                .overflow_hidden()
++                .when(corner_radius > px(0.), |this| this.rounded_b(corner_radius))
+                 .border_t_1()
+                 .border_color(cx.theme().colors().border.opacity(0.8))
+                 .child(
+@@ -7180,14 +7195,33 @@ impl GitPanel {
+     fn render_tab_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+         let active_tab = self.active_tab;
+ 
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++            px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++        } else {
++            px(0.)
++        };
++
++        let element_hover = cx.theme().colors().element_hover;
++        let editor_bg = cx.theme().colors().editor_background;
++        let border_color = cx.theme().colors().border;
++        let tab_height = Tab::container_height(cx);
++
+         let focus_handle = self.focus_handle.clone();
+-        let tab = |id: ElementId,
++        let tab = move |id: ElementId,
+                    active: bool,
+                    show_changes: bool,
+                    label: SharedString,
+                    set_active_tab: GitPanelTab,
+                    tooltip_action: Box<dyn Action>| {
+             let focus_handle = focus_handle.clone();
++            let is_changes = set_active_tab == GitPanelTab::Changes;
+ 
+             h_flex()
+                 .cursor_pointer()
+@@ -7197,11 +7231,19 @@ impl GitPanel {
+                 .gap_1()
+                 .flex_1()
+                 .justify_center()
+-                .hover(|s| s.bg(cx.theme().colors().element_hover))
++                .overflow_hidden()
++                .when(corner_radius > px(0.), |this| {
++                    if is_changes {
++                        this.rounded_tl(corner_radius)
++                    } else {
++                        this.rounded_tr(corner_radius)
++                    }
++                })
++                .hover(|s| s.bg(element_hover))
+                 .border_b_1()
+                 .when(!active, |s| {
+-                    s.bg(cx.theme().colors().editor_background.opacity(0.6))
+-                        .border_color(cx.theme().colors().border.opacity(0.6))
++                    s.bg(editor_bg.opacity(0.6))
++                        .border_color(border_color.opacity(0.6))
+                 })
+                 .child(Label::new(label.clone()).when(!active, |this| this.color(Color::Muted)))
+                 .when(show_changes && self.changes_count > 0, |this| {
+@@ -7223,8 +7265,10 @@ impl GitPanel {
+ 
+         h_flex()
+             .relative()
+-            .h(Tab::container_height(cx))
++            .h(tab_height)
+             .w_full()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded_t(corner_radius))
+             .child(tab(
+                 ElementId::Name("changes-tab".into()),
+                 active_tab == GitPanelTab::Changes,
+@@ -9318,6 +9362,19 @@ impl Render for GitPanel {
+         let has_entries = !self.entries.is_empty();
+         let has_write_access = self.has_write_access(cx);
+ 
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++            px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++        } else {
++            px(0.)
++        };
++
+         #[cfg(feature = "call")]
+         let has_co_authors = self
+             .workspace
+@@ -9403,6 +9460,7 @@ impl Render for GitPanel {
+             .on_action(cx.listener(Self::activate_history_tab))
+             .size_full()
+             .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded(corner_radius))
+             .bg(cx.theme().colors().panel_background)
+             .child(
+                 v_flex()
+diff --git a/crates/project_panel/src/project_panel.rs b/crates/project_panel/src/project_panel.rs
+index f7bedca..879d361 100644
+--- a/crates/project_panel/src/project_panel.rs
++++ b/crates/project_panel/src/project_panel.rs
+@@ -6203,6 +6203,15 @@ impl ProjectPanel {
+                     .into_owned()
+             });
+ 
++        let island_layout = cx
++            .try_global::<settings::SettingsStore>()
++            .and_then(|s| {
++                s.raw_user_settings()
++                    .and_then(|u| u.content.workspace.island_layout.as_ref())
++                    .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++            });
++        let is_island = island_layout.is_some_and(|l| l.enabled.unwrap_or(false));
++
+         div()
+             .id(id.clone())
+             .relative()
+@@ -6224,12 +6233,21 @@ impl ProjectPanel {
+                 },
+             )
+             .cursor_pointer()
+-            .rounded_none()
++            .when(is_island, |this| this.rounded_md().overflow_hidden())
++            .when(!is_island, |this| {
++                this.rounded_none()
++                    .border_1()
++                    .border_r_2()
++                    .border_color(border_color)
++            })
+             .bg(bg_color)
+-            .border_1()
+-            .border_r_2()
+-            .border_color(border_color)
+-            .hover(|style| style.bg(bg_hover_color).border_color(border_hover_color))
++            .hover(|mut style| {
++                style = style.bg(bg_hover_color);
++                if !is_island {
++                    style = style.border_color(border_hover_color);
++                }
++                style
++            })
+             .when(is_sticky, |this| this.block_mouse_except_scroll())
+             .when(!is_sticky, |this| {
+                 this.when(
+@@ -7588,9 +7606,24 @@ impl Render for ProjectPanel {
+                     }
+                 }));
+             }
++            let island_layout = cx
++                .try_global::<settings::SettingsStore>()
++                .and_then(|s| {
++                    s.raw_user_settings()
++                        .and_then(|u| u.content.workspace.island_layout.as_ref())
++                        .or_else(|| s.raw_default_settings().workspace.island_layout.as_ref())
++                });
++            let corner_radius = if island_layout.is_some_and(|l| l.enabled.unwrap_or(false)) {
++                px(island_layout.and_then(|l| l.corner_radius).unwrap_or(18.0))
++            } else {
++                px(0.)
++            };
++
+             h_flex()
+                 .id("project-panel")
+                 .group("project-panel")
++                .overflow_hidden()
++                .when(corner_radius > px(0.), |this| this.rounded(corner_radius))
+                 .when(panel_settings.drag_and_drop, |this| {
+                     this.on_drag_move(cx.listener(handle_drag_move::<ExternalPaths>))
+                         .on_drag_move(cx.listener(handle_drag_move::<DraggedSelection>))
+@@ -7683,6 +7716,11 @@ impl Render for ProjectPanel {
+                 .track_focus(&self.focus_handle(cx))
+                 .child(
+                     v_flex()
++                        .size_full()
++                        .overflow_hidden()
++                        .when(corner_radius > px(0.), |this| {
++                            this.rounded(corner_radius).p(px(8.))
++                        })
+                         .child(
+                             uniform_list("entries", item_count, {
+                                 cx.processor(|this, range: Range<usize>, window, cx| {
+diff --git a/crates/settings/src/vscode_import.rs b/crates/settings/src/vscode_import.rs
+index 3cc0736..4f5ae98 100644
+--- a/crates/settings/src/vscode_import.rs
++++ b/crates/settings/src/vscode_import.rs
+@@ -1120,6 +1120,7 @@ impl VsCodeSettings {
+             }),
+             zoomed_padding: None,
+             focus_follows_mouse: None,
++            island_layout: None,
+         }
+     }
+ 
+diff --git a/crates/settings_content/src/workspace.rs b/crates/settings_content/src/workspace.rs
+index 0a6429e..7508631 100644
+--- a/crates/settings_content/src/workspace.rs
++++ b/crates/settings_content/src/workspace.rs
+@@ -176,6 +176,8 @@ pub struct WorkspaceSettingsContent {
+     /// Whether the focused panel follows the mouse location
+     /// Default: false
+     pub focus_follows_mouse: Option<FocusFollowsMouse>,
++    /// Floating island layout settings.
++    pub island_layout: Option<IslandLayoutSettings>,
+ }
+ 
+ #[with_fallible_options]
+@@ -1213,3 +1215,73 @@ pub struct FocusFollowsMouse {
+     pub enabled: Option<bool>,
+     pub debounce_ms: Option<u64>,
+ }
++
++#[with_fallible_options]
++#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize, JsonSchema, MergeFrom)]
++pub struct IslandLayoutSettings {
++    /// Whether floating island layout mode is enabled.
++    ///
++    /// Default: false
++    pub enabled: Option<bool>,
++
++    /// Corner radius in pixels for floating panels and cards.
++    ///
++    /// Default: 18.0
++    pub corner_radius: Option<f32>,
++
++    /// Gap / padding around floating islands in pixels.
++    ///
++    /// Default: 6.0
++    pub gap: Option<f32>,
++
++    /// Whether to render a subtle border outline around floating panels.
++    ///
++    /// Default: true
++    pub border: Option<bool>,
++
++    /// Whether to display editor tabs as rounded pills inside the pane header.
++    ///
++    /// Default: true
++    pub pill_tabs: Option<bool>,
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn test_island_layout_settings_deserialization() {
++        let json = r#"{
++            "enabled": true,
++            "corner_radius": 12.0,
++            "gap": 8.0,
++            "border": false,
++            "pill_tabs": true
++        }"#;
++
++        let settings: IslandLayoutSettings = serde_json::from_str(json).unwrap();
++        assert_eq!(settings.enabled, Some(true));
++        assert_eq!(settings.corner_radius, Some(12.0));
++        assert_eq!(settings.gap, Some(8.0));
++        assert_eq!(settings.border, Some(false));
++        assert_eq!(settings.pill_tabs, Some(true));
++    }
++
++    #[test]
++    fn test_workspace_settings_content_island_layout() {
++        let json = r#"{
++            "island_layout": {
++                "enabled": true,
++                "corner_radius": 16.0
++            }
++        }"#;
++
++        let content: WorkspaceSettingsContent = serde_json::from_str(json).unwrap();
++        let island = content.island_layout.unwrap();
++        assert_eq!(island.enabled, Some(true));
++        assert_eq!(island.corner_radius, Some(16.0));
++        assert_eq!(island.gap, None);
++        assert_eq!(island.border, None);
++        assert_eq!(island.pill_tabs, None);
++    }
++}
+diff --git a/crates/settings_ui/src/page_data.rs b/crates/settings_ui/src/page_data.rs
+index 138acac..d2d5fcb 100644
+--- a/crates/settings_ui/src/page_data.rs
++++ b/crates/settings_ui/src/page_data.rs
+@@ -5450,9 +5450,141 @@ fn window_and_layout_page() -> SettingsPage {
+         ]
+     }
+ 
++    fn island_layout_section() -> [SettingsPageItem; 6] {
++        [
++            SettingsPageItem::SectionHeader("Island Layout"),
++            SettingsPageItem::SettingItem(SettingItem {
++                title: "Enable Island Layout",
++                description: "Render panels, editor panes, and status bar as floating cards with rounded corners.",
++                field: Box::new(SettingField {
++                    organization_override: None,
++                    json_path: Some("island_layout.enabled"),
++                    pick: |settings_content| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .as_ref()?
++                            .enabled
++                            .as_ref()
++                    },
++                    write: |settings_content, value, _| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .get_or_insert_default()
++                            .enabled = value;
++                    },
++                }),
++                metadata: None,
++                files: USER,
++            }),
++            SettingsPageItem::SettingItem(SettingItem {
++                title: "Corner Radius",
++                description: "The corner radius in pixels for floating cards and panels.",
++                field: Box::new(SettingField {
++                    organization_override: None,
++                    json_path: Some("island_layout.corner_radius"),
++                    pick: |settings_content| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .as_ref()?
++                            .corner_radius
++                            .as_ref()
++                    },
++                    write: |settings_content, value, _| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .get_or_insert_default()
++                            .corner_radius = value;
++                    },
++                }),
++                metadata: None,
++                files: USER,
++            }),
++            SettingsPageItem::SettingItem(SettingItem {
++                title: "Layout Gap",
++                description: "The gap spacing in pixels between floating cards and window borders.",
++                field: Box::new(SettingField {
++                    organization_override: None,
++                    json_path: Some("island_layout.gap"),
++                    pick: |settings_content| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .as_ref()?
++                            .gap
++                            .as_ref()
++                    },
++                    write: |settings_content, value, _| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .get_or_insert_default()
++                            .gap = value;
++                    },
++                }),
++                metadata: None,
++                files: USER,
++            }),
++            SettingsPageItem::SettingItem(SettingItem {
++                title: "Card Borders",
++                description: "Show subtle border outlines around floating cards.",
++                field: Box::new(SettingField {
++                    organization_override: None,
++                    json_path: Some("island_layout.border"),
++                    pick: |settings_content| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .as_ref()?
++                            .border
++                            .as_ref()
++                    },
++                    write: |settings_content, value, _| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .get_or_insert_default()
++                            .border = value;
++                    },
++                }),
++                metadata: None,
++                files: USER,
++            }),
++            SettingsPageItem::SettingItem(SettingItem {
++                title: "Pill Tabs",
++                description: "Render tabs as floating rounded pill chips.",
++                field: Box::new(SettingField {
++                    organization_override: None,
++                    json_path: Some("island_layout.pill_tabs"),
++                    pick: |settings_content| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .as_ref()?
++                            .pill_tabs
++                            .as_ref()
++                    },
++                    write: |settings_content, value, _| {
++                        settings_content
++                            .workspace
++                            .island_layout
++                            .get_or_insert_default()
++                            .pill_tabs = value;
++                    },
++                }),
++                metadata: None,
++                files: USER,
++            }),
++        ]
++    }
++
+     SettingsPage {
+         title: "Window & Layout",
+         items: concat_sections![
++            island_layout_section(),
+             status_bar_section(),
+             title_bar_section(),
+             tab_bar_section(),
+diff --git a/crates/terminal_view/src/terminal_view.rs b/crates/terminal_view/src/terminal_view.rs
+index 0cd612f..80e390b 100644
+--- a/crates/terminal_view/src/terminal_view.rs
++++ b/crates/terminal_view/src/terminal_view.rs
+@@ -1464,10 +1464,19 @@ impl Render for TerminalView {
+         let content_mode = self.content_mode(window, cx);
+         let content_corner_radii = self.content_background_corner_radii(&content_mode, cx);
+ 
++        let island_layout = workspace::WorkspaceSettings::get_global(cx).island_layout;
++        let corner_radius = if island_layout.enabled {
++            px(island_layout.corner_radius)
++        } else {
++            px(0.)
++        };
++
+         div()
+             .id("terminal-view")
+             .size_full()
+             .relative()
++            .overflow_hidden()
++            .when(corner_radius > px(0.), |this| this.rounded(corner_radius))
+             .track_focus(&self.focus_handle(cx))
+             .key_context(self.dispatch_context(cx))
+             .on_action(cx.listener(TerminalView::send_text))
+@@ -1522,6 +1531,8 @@ impl Render for TerminalView {
+                 div()
+                     .id("terminal-view-container")
+                     .size_full()
++                    .overflow_hidden()
++                    .when(corner_radius > px(0.), |this| this.rounded(corner_radius))
+                     .bg(cx.theme().colors().editor_background)
+                     .when_some(self.background_corner_radii, |this, radii| {
+                         this.rounded_tl(radii.top_left)
+@@ -1554,10 +1565,6 @@ impl Render for TerminalView {
+                         div.custom_scrollbars(
+                             Scrollbars::for_settings::<TerminalScrollbarSettingsWrapper>()
+                                 .show_along(ScrollAxes::Vertical)
+-                                .with_stable_track_along(
+-                                    ScrollAxes::Vertical,
+-                                    colors.editor_background,
+-                                )
+                                 .tracked_scroll_handle(&self.scroll_handle),
+                             window,
+                             cx,
+diff --git a/crates/ui/src/components/tab.rs b/crates/ui/src/components/tab.rs
+index 6a25ad4..a8c76ce 100644
+--- a/crates/ui/src/components/tab.rs
++++ b/crates/ui/src/components/tab.rs
+@@ -35,6 +35,8 @@ pub struct Tab {
+     selected: bool,
+     position: TabPosition,
+     close_side: TabCloseSide,
++    pill_style: bool,
++    corner_radius: Option<Pixels>,
+     start_slot: Option<AnyElement>,
+     end_slot: Option<AnyElement>,
+     children: SmallVec<[AnyElement; 2]>,
+@@ -50,12 +52,19 @@ impl Tab {
+             selected: false,
+             position: TabPosition::First,
+             close_side: TabCloseSide::End,
++            pill_style: false,
++            corner_radius: None,
+             start_slot: None,
+             end_slot: None,
+             children: SmallVec::new(),
+         }
+     }
+ 
++    pub fn corner_radius(mut self, corner_radius: Pixels) -> Self {
++        self.corner_radius = Some(corner_radius);
++        self
++    }
++
+     pub fn position(mut self, position: TabPosition) -> Self {
+         self.position = position;
+         self
+@@ -66,6 +75,11 @@ impl Tab {
+         self
+     }
+ 
++    pub fn pill_style(mut self, pill_style: bool) -> Self {
++        self.pill_style = pill_style;
++        self
++    }
++
+     pub fn start_slot<E: IntoElement>(mut self, element: impl Into<Option<E>>) -> Self {
+         self.start_slot = element.into().map(IntoElement::into_any_element);
+         self
+@@ -109,7 +123,7 @@ impl ParentElement for Tab {
+ impl RenderOnce for Tab {
+     #[allow(refining_impl_trait)]
+     fn render(self, _: &mut Window, cx: &mut App) -> Stateful<Div> {
+-        let (text_color, tab_bg, _tab_hover_bg, _tab_active_bg) = match self.selected {
++        let (text_color, tab_bg, tab_hover_bg, _tab_active_bg) = match self.selected {
+             false => (
+                 cx.theme().colors().text_muted,
+                 cx.theme().colors().tab_inactive_background,
+@@ -141,42 +155,82 @@ impl RenderOnce for Tab {
+             }
+         };
+ 
+-        self.div
+-            .h(Tab::container_height(cx))
+-            .bg(tab_bg)
+-            .border_color(cx.theme().colors().border)
+-            .map(|this| match self.position {
+-                TabPosition::First => {
+-                    if self.selected {
+-                        this.pl_px().border_r_1().pb_px()
+-                    } else {
+-                        this.pl_px().pr_px().border_b_1()
++        if self.pill_style {
++            let tab_content = h_flex()
++                .group("")
++                .relative()
++                .h_full()
++                .items_center()
++                .px(DynamicSpacing::Base04.px(cx))
++                .gap(DynamicSpacing::Base04.rems(cx))
++                .text_color(text_color)
++                .child(start_slot)
++                .children(self.children)
++                .child(end_slot);
++
++            self.div
++                .rounded_md()
++                .mx_0p5()
++                .px_1p5()
++                .h(px(26.))
++                .flex()
++                .items_center()
++                .when(self.selected, |this| {
++                    this.bg(tab_bg)
++                        .border_1()
++                        .border_color(cx.theme().colors().border_variant)
++                })
++                .when(!self.selected, |this| {
++                    this.bg(gpui::transparent_black())
++                        .hover(|s| s.bg(tab_hover_bg))
++                })
++                .cursor_pointer()
++                .child(tab_content)
++        } else {
++            let tab_content = h_flex()
++                .group("")
++                .relative()
++                .h(Tab::content_height(cx))
++                .px(DynamicSpacing::Base04.px(cx))
++                .gap(DynamicSpacing::Base04.rems(cx))
++                .text_color(text_color)
++                .child(start_slot)
++                .children(self.children)
++                .child(end_slot);
++
++            self.div
++                .h(Tab::container_height(cx))
++                .bg(tab_bg)
++                .when_some(self.corner_radius, |this, radius| match self.position {
++                    TabPosition::First => this.rounded_tl(radius),
++                    TabPosition::Last => this.rounded_tr(radius),
++                    _ => this,
++                })
++                .border_color(cx.theme().colors().border)
++                .map(|this| match self.position {
++                    TabPosition::First => {
++                        if self.selected {
++                            this.pl_px().border_r_1().pb_px()
++                        } else {
++                            this.pl_px().pr_px().border_b_1()
++                        }
+                     }
+-                }
+-                TabPosition::Last => {
+-                    if self.selected {
+-                        this.border_l_1().border_r_1().pb_px()
+-                    } else {
+-                        this.pl_px().border_b_1().border_r_1()
++                    TabPosition::Last => {
++                        if self.selected {
++                            this.border_l_1().border_r_1().pb_px()
++                        } else {
++                            this.pl_px().border_b_1().border_r_1()
++                        }
+                     }
+-                }
+-                TabPosition::Middle(Ordering::Equal) => this.border_l_1().border_r_1().pb_px(),
+-                TabPosition::Middle(Ordering::Less) => this.border_l_1().pr_px().border_b_1(),
+-                TabPosition::Middle(Ordering::Greater) => this.border_r_1().pl_px().border_b_1(),
+-            })
+-            .cursor_pointer()
+-            .child(
+-                h_flex()
+-                    .group("")
+-                    .relative()
+-                    .h(Tab::content_height(cx))
+-                    .px(DynamicSpacing::Base04.px(cx))
+-                    .gap(DynamicSpacing::Base04.rems(cx))
+-                    .text_color(text_color)
+-                    .child(start_slot)
+-                    .children(self.children)
+-                    .child(end_slot),
+-            )
++                    TabPosition::Middle(Ordering::Equal) => this.border_l_1().border_r_1().pb_px(),
++                    TabPosition::Middle(Ordering::Less) => this.border_l_1().pr_px().border_b_1(),
++                    TabPosition::Middle(Ordering::Greater) => {
++                        this.border_r_1().pl_px().border_b_1()
++                    }
++                })
++                .cursor_pointer()
++                .child(tab_content)
++        }
+     }
+ }
+ 
+@@ -193,43 +247,106 @@ impl Component for Tab {
+     fn preview(_window: &mut Window, _cx: &mut App) -> AnyElement {
+         v_flex()
+             .gap_6()
+-            .children(vec![example_group_with_title(
+-                "Variations",
+-                vec![
+-                    single_example(
+-                        "Default",
+-                        Tab::new("default").child("Default Tab").into_any_element(),
+-                    ),
+-                    single_example(
+-                        "Selected",
+-                        Tab::new("selected")
+-                            .toggle_state(true)
+-                            .child("Selected Tab")
+-                            .into_any_element(),
+-                    ),
+-                    single_example(
+-                        "First",
+-                        Tab::new("first")
+-                            .position(TabPosition::First)
+-                            .child("First Tab")
+-                            .into_any_element(),
+-                    ),
+-                    single_example(
+-                        "Middle",
+-                        Tab::new("middle")
+-                            .position(TabPosition::Middle(Ordering::Equal))
+-                            .child("Middle Tab")
+-                            .into_any_element(),
+-                    ),
+-                    single_example(
+-                        "Last",
+-                        Tab::new("last")
+-                            .position(TabPosition::Last)
+-                            .child("Last Tab")
+-                            .into_any_element(),
+-                    ),
+-                ],
+-            )])
++            .children(vec![
++                example_group_with_title(
++                    "Variations",
++                    vec![
++                        single_example(
++                            "Default",
++                            Tab::new("default").child("Default Tab").into_any_element(),
++                        ),
++                        single_example(
++                            "Selected",
++                            Tab::new("selected")
++                                .toggle_state(true)
++                                .child("Selected Tab")
++                                .into_any_element(),
++                        ),
++                        single_example(
++                            "First",
++                            Tab::new("first")
++                                .position(TabPosition::First)
++                                .child("First Tab")
++                                .into_any_element(),
++                        ),
++                        single_example(
++                            "Middle",
++                            Tab::new("middle")
++                                .position(TabPosition::Middle(Ordering::Equal))
++                                .child("Middle Tab")
++                                .into_any_element(),
++                        ),
++                        single_example(
++                            "Last",
++                            Tab::new("last")
++                                .position(TabPosition::Last)
++                                .child("Last Tab")
++                                .into_any_element(),
++                        ),
++                    ],
++                ),
++                example_group_with_title(
++                    "Pill Style Variations",
++                    vec![
++                        single_example(
++                            "Pill Selected",
++                            Tab::new("pill_selected")
++                                .pill_style(true)
++                                .toggle_state(true)
++                                .child("Active Pill Tab")
++                                .into_any_element(),
++                        ),
++                        single_example(
++                            "Pill Inactive",
++                            Tab::new("pill_inactive")
++                                .pill_style(true)
++                                .toggle_state(false)
++                                .child("Inactive Pill Tab")
++                                .into_any_element(),
++                        ),
++                    ],
++                ),
++            ])
+             .into_any_element()
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gpui::{Context, Render, TestAppContext};
++
++    struct TestTabs;
++
++    impl Render for TestTabs {
++        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
++            div()
++                .child(
++                    Tab::new("tab1")
++                        .pill_style(true)
++                        .toggle_state(true)
++                        .child("Active Pill Tab"),
++                )
++                .child(
++                    Tab::new("tab2")
++                        .pill_style(true)
++                        .toggle_state(false)
++                        .child("Inactive Pill Tab"),
++                )
++                .child(Tab::new("tab3").pill_style(false).child("Default Tab"))
++        }
++    }
++
++    #[gpui::test]
++    fn test_tab_pill_style(cx: &mut TestAppContext) {
++        cx.update(|cx| {
++            let settings_store = settings::SettingsStore::test(cx);
++            cx.set_global(settings_store);
++            theme_settings::init(theme::LoadThemes::JustBase, cx);
++        });
++
++        let (_view, cx) = cx.add_window_view(|_, _| TestTabs);
++
++        cx.run_until_parked();
++    }
++}
+diff --git a/crates/ui/src/components/tab_bar.rs b/crates/ui/src/components/tab_bar.rs
+index 524f880..75d0319 100644
+--- a/crates/ui/src/components/tab_bar.rs
++++ b/crates/ui/src/components/tab_bar.rs
+@@ -11,6 +11,8 @@ pub struct TabBar {
+     children: SmallVec<[AnyElement; 2]>,
+     end_children: SmallVec<[AnyElement; 2]>,
+     scroll_handle: Option<ScrollHandle>,
++    pill_style: bool,
++    corner_radius: Option<Pixels>,
+ }
+ 
+ impl TabBar {
+@@ -21,6 +23,8 @@ impl TabBar {
+             children: SmallVec::new(),
+             end_children: SmallVec::new(),
+             scroll_handle: None,
++            pill_style: false,
++            corner_radius: None,
+         }
+     }
+ 
+@@ -29,6 +33,16 @@ impl TabBar {
+         self
+     }
+ 
++    pub fn pill_style(mut self, pill_style: bool) -> Self {
++        self.pill_style = pill_style;
++        self
++    }
++
++    pub fn corner_radius(mut self, corner_radius: Pixels) -> Self {
++        self.corner_radius = Some(corner_radius);
++        self
++    }
++
+     pub fn start_children_mut(&mut self) -> &mut SmallVec<[AnyElement; 2]> {
+         &mut self.start_children
+     }
+@@ -91,6 +105,7 @@ impl ParentElement for TabBar {
+ 
+ impl RenderOnce for TabBar {
+     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
++        let pill_style = self.pill_style;
+         div()
+             .id(self.id)
+             .group("tab_bar")
+@@ -98,16 +113,25 @@ impl RenderOnce for TabBar {
+             .flex_none()
+             .w_full()
+             .h(Tab::container_height(cx))
+-            .bg(cx.theme().colors().tab_bar_background)
++            .overflow_hidden()
++            .when_some(self.corner_radius, |this, radius| this.rounded_t(radius))
++            .when(!pill_style, |this| {
++                this.bg(cx.theme().colors().tab_bar_background)
++            })
++            .when(pill_style, |this| {
++                this.bg(gpui::transparent_black()).px_1().items_center()
++            })
+             .when(!self.start_children.is_empty(), |this| {
+                 this.child(
+                     h_flex()
+                         .flex_none()
+                         .gap(DynamicSpacing::Base04.rems(cx))
+                         .px(DynamicSpacing::Base06.rems(cx))
+-                        .border_b_1()
+-                        .border_r_1()
+-                        .border_color(cx.theme().colors().border)
++                        .when(!pill_style, |this| {
++                            this.border_b_1()
++                                .border_r_1()
++                                .border_color(cx.theme().colors().border)
++                        })
+                         .children(self.start_children),
+                 )
+             })
+@@ -117,15 +141,17 @@ impl RenderOnce for TabBar {
+                     .flex_1()
+                     .h_full()
+                     .overflow_x_hidden()
+-                    .child(
+-                        div()
+-                            .absolute()
+-                            .top_0()
+-                            .left_0()
+-                            .size_full()
+-                            .border_b_1()
+-                            .border_color(cx.theme().colors().border),
+-                    )
++                    .when(!pill_style, |this| {
++                        this.child(
++                            div()
++                                .absolute()
++                                .top_0()
++                                .left_0()
++                                .size_full()
++                                .border_b_1()
++                                .border_color(cx.theme().colors().border),
++                        )
++                    })
+                     .child(
+                         h_flex()
+                             .id("tabs")
+@@ -143,9 +169,11 @@ impl RenderOnce for TabBar {
+                         .flex_none()
+                         .gap(DynamicSpacing::Base04.rems(cx))
+                         .px(DynamicSpacing::Base06.rems(cx))
+-                        .border_color(cx.theme().colors().border)
+-                        .border_b_1()
+-                        .border_l_1()
++                        .when(!pill_style, |this| {
++                            this.border_color(cx.theme().colors().border)
++                                .border_b_1()
++                                .border_l_1()
++                        })
+                         .children(self.end_children),
+                 )
+             })
+@@ -200,7 +228,81 @@ impl Component for TabBar {
+                             .into_any_element(),
+                     )],
+                 ),
++                example_group_with_title(
++                    "Pill Style TabBar",
++                    vec![single_example(
++                        "Pill Tabs",
++                        TabBar::new("pill_tab_bar")
++                            .pill_style(true)
++                            .child(
++                                Tab::new("p1")
++                                    .pill_style(true)
++                                    .toggle_state(true)
++                                    .child("Active Tab"),
++                            )
++                            .child(
++                                Tab::new("p2")
++                                    .pill_style(true)
++                                    .toggle_state(false)
++                                    .child("Inactive Tab"),
++                            )
++                            .into_any_element(),
++                    )],
++                ),
+             ])
+             .into_any_element()
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gpui::{Context, Render, TestAppContext};
++
++    struct TestTabBar;
++
++    impl Render for TestTabBar {
++        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
++            div()
++                .child(
++                    TabBar::new("pill_bar")
++                        .pill_style(true)
++                        .child(
++                            Tab::new("tab1")
++                                .pill_style(true)
++                                .toggle_state(true)
++                                .child("Active Pill"),
++                        )
++                        .child(
++                            Tab::new("tab2")
++                                .pill_style(true)
++                                .toggle_state(false)
++                                .child("Inactive Pill"),
++                        ),
++                )
++                .child(
++                    TabBar::new("default_bar")
++                        .pill_style(false)
++                        .child(Tab::new("tab3").toggle_state(true).child("Active Default"))
++                        .child(
++                            Tab::new("tab4")
++                                .toggle_state(false)
++                                .child("Inactive Default"),
++                        ),
++                )
++        }
++    }
++
++    #[gpui::test]
++    fn test_tab_bar_pill_style(cx: &mut TestAppContext) {
++        cx.update(|cx| {
++            let settings_store = settings::SettingsStore::test(cx);
++            cx.set_global(settings_store);
++            theme_settings::init(theme::LoadThemes::JustBase, cx);
++        });
++
++        let (_view, cx) = cx.add_window_view(|_, _| TestTabBar);
++
++        cx.run_until_parked();
++    }
++}
+diff --git a/crates/workspace/src/dock.rs b/crates/workspace/src/dock.rs
+index 918607c..078afc6 100644
+--- a/crates/workspace/src/dock.rs
++++ b/crates/workspace/src/dock.rs
+@@ -8,10 +8,10 @@ use client::proto;
+ use db::kvp::KeyValueStore;
+ 
+ use gpui::{
+-    Action, Anchor, AnyView, App, Axis, Context, Entity, EntityId, EventEmitter, FocusHandle,
++    Action, Anchor, AnyView, App, Axis, Context, Div, Entity, EntityId, EventEmitter, FocusHandle,
+     Focusable, IntoElement, KeyContext, MouseButton, MouseDownEvent, MouseUpEvent, ParentElement,
+-    Render, SharedString, StyleRefinement, Styled, Subscription, WeakEntity, Window, deferred, div,
+-    px,
++    Render, SharedString, Stateful, StyleRefinement, Styled, Subscription, WeakEntity, Window,
++    deferred, div, px,
+ };
+ use serde::{Deserialize, Serialize};
+ use settings::{Settings, SettingsStore, TerminalDockPosition};
+@@ -1265,13 +1265,15 @@ impl Dock {
+             .flatten()
+             .and_then(|json| serde_json::from_str::<PanelSizeState>(&json).log_err())
+     }
+-}
+-
+-impl Render for Dock {
+-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
++    pub(crate) fn render_panel(
++        &mut self,
++        _window: &mut Window,
++        cx: &mut Context<Self>,
++    ) -> Stateful<Div> {
+         let dispatch_context = Self::dispatch_context();
+         if let Some(entry) = self.visible_entry() {
+             let position = self.position;
++            let island_layout = WorkspaceSettings::get_global(cx).island_layout;
+             let create_resize_handle = || {
+                 let handle = div()
+                     .id("resize-handle")
+@@ -1338,7 +1340,6 @@ impl Render for Dock {
+                 .focus_follows_mouse(self.focus_follows_mouse, cx)
+                 .flex()
+                 .bg(cx.theme().colors().panel_background)
+-                .border_color(cx.theme().colors().border)
+                 .overflow_hidden()
+                 .map(|this| match self.position().axis() {
+                     // Width and height are always set on the workspace wrapper in
+@@ -1346,24 +1347,45 @@ impl Render for Dock {
+                     Axis::Horizontal => this.w_full().h_full().flex_row(),
+                     Axis::Vertical => this.h_full().w_full().flex_col(),
+                 })
+-                .map(|this| match self.position() {
+-                    DockPosition::Left => this.border_r_1(),
+-                    DockPosition::Right => this.border_l_1(),
+-                    DockPosition::Bottom => this.border_t_1(),
++                .map(|this| {
++                    if island_layout.enabled {
++                        this.rounded(px(island_layout.corner_radius))
++                            .shadow_sm()
++                            .when(island_layout.border, |this| {
++                                this.border_1()
++                                    .border_color(cx.theme().colors().border_variant)
++                            })
++                    } else {
++                        this.border_color(cx.theme().colors().border).map(|this| {
++                            match self.position() {
++                                DockPosition::Left => this.border_r_1(),
++                                DockPosition::Right => this.border_l_1(),
++                                DockPosition::Bottom => this.border_t_1(),
++                            }
++                        })
++                    }
+                 })
+-                .child(
++                .child({
++                    let cached_style = if island_layout.enabled {
++                        StyleRefinement::default()
++                            .v_flex()
++                            .size_full()
++                            .overflow_hidden()
++                            .rounded(px(island_layout.corner_radius))
++                    } else {
++                        StyleRefinement::default().v_flex().size_full()
++                    };
+                     div()
+                         .map(|this| match self.position().axis() {
+                             Axis::Horizontal => this.w_full().h_full(),
+                             Axis::Vertical => this.h_full().w_full(),
+                         })
+-                        .child(
+-                            entry
+-                                .panel
+-                                .to_any()
+-                                .cached(StyleRefinement::default().v_flex().size_full()),
+-                        ),
+-                )
++                        .overflow_hidden()
++                        .when(island_layout.enabled, |this| {
++                            this.rounded(px(island_layout.corner_radius))
++                        })
++                        .child(entry.panel.to_any().cached(cached_style))
++                })
+                 .when(self.resizable(cx), |this| {
+                     this.child(create_resize_handle())
+                 })
+@@ -1376,6 +1398,12 @@ impl Render for Dock {
+     }
+ }
+ 
++impl Render for Dock {
++    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
++        self.render_panel(window, cx)
++    }
++}
++
+ impl PanelButtons {
+     pub fn new(dock: Entity<Dock>, cx: &mut Context<Self>) -> Self {
+         cx.observe(&dock, |_, _, cx| cx.notify()).detach();
+@@ -1759,3 +1787,290 @@ pub mod test {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::Workspace;
++    use crate::dock::test::TestPanel;
++    use fs::FakeFs;
++    use gpui::{
++        AbsoluteLength, CornersRefinement, EdgesRefinement, TestAppContext, UpdateGlobal, px,
++    };
++    use project::Project;
++
++    fn init_test(cx: &mut TestAppContext) {
++        cx.update(|cx| {
++            let settings_store = SettingsStore::test(cx);
++            cx.set_global(settings_store);
++            cx.set_global(db::AppDatabase::test_new());
++            theme_settings::init(theme::LoadThemes::JustBase, cx);
++        });
++    }
++
++    #[gpui::test]
++    async fn test_dock_render_default_flat_styling(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let _left_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Left, 100, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.left_dock().update(cx, |left_dock, cx| {
++                left_dock.activate_panel(0, window, cx);
++                left_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let mut div = workspace.update_in(cx, |workspace, window, cx| {
++            workspace
++                .left_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx))
++        });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            EdgesRefinement {
++                top: None,
++                right: Some(AbsoluteLength::Pixels(px(1.))),
++                bottom: None,
++                left: None,
++            }
++        );
++        assert_eq!(style.corner_radii, CornersRefinement::default());
++        assert!(style.box_shadow.is_none());
++    }
++
++    #[gpui::test]
++    async fn test_dock_render_island_layout_card_styling(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(18.0),
++                        gap: Some(6.0),
++                        border: Some(true),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let _bottom_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Bottom, 100, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.bottom_dock().update(cx, |bottom_dock, cx| {
++                bottom_dock.activate_panel(0, window, cx);
++                bottom_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let (mut div, border_variant) = workspace.update_in(cx, |workspace, window, cx| {
++            let border_variant = cx.theme().colors().border_variant;
++            let div = workspace
++                .bottom_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx));
++            (div, border_variant)
++        });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            EdgesRefinement {
++                top: Some(AbsoluteLength::Pixels(px(1.))),
++                right: Some(AbsoluteLength::Pixels(px(1.))),
++                bottom: Some(AbsoluteLength::Pixels(px(1.))),
++                left: Some(AbsoluteLength::Pixels(px(1.))),
++            }
++        );
++        assert_eq!(style.border_color, Some(border_variant));
++        assert_eq!(
++            style.corner_radii,
++            CornersRefinement {
++                top_left: Some(AbsoluteLength::Pixels(px(18.))),
++                top_right: Some(AbsoluteLength::Pixels(px(18.))),
++                bottom_right: Some(AbsoluteLength::Pixels(px(18.))),
++                bottom_left: Some(AbsoluteLength::Pixels(px(18.))),
++            }
++        );
++        assert!(style.box_shadow.is_some());
++
++        // Left dock should be seamless (no card borders/radii)
++        let _left_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Left, 100, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.left_dock().update(cx, |left_dock, cx| {
++                left_dock.activate_panel(0, window, cx);
++                left_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let mut left_div = workspace.update_in(cx, |workspace, window, cx| {
++            workspace
++                .left_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx))
++        });
++        let left_style = left_div.style();
++        assert_eq!(
++            left_style.border_widths,
++            EdgesRefinement {
++                top: Some(AbsoluteLength::Pixels(px(1.))),
++                right: Some(AbsoluteLength::Pixels(px(1.))),
++                bottom: Some(AbsoluteLength::Pixels(px(1.))),
++                left: Some(AbsoluteLength::Pixels(px(1.))),
++            }
++        );
++        assert_eq!(
++            left_style.corner_radii,
++            CornersRefinement {
++                top_left: Some(AbsoluteLength::Pixels(px(18.))),
++                top_right: Some(AbsoluteLength::Pixels(px(18.))),
++                bottom_right: Some(AbsoluteLength::Pixels(px(18.))),
++                bottom_left: Some(AbsoluteLength::Pixels(px(18.))),
++            }
++        );
++    }
++
++    #[gpui::test]
++    async fn test_dock_render_island_layout_without_border(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(12.0),
++                        gap: Some(6.0),
++                        border: Some(false),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let _bottom_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Bottom, 100, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.bottom_dock().update(cx, |bottom_dock, cx| {
++                bottom_dock.activate_panel(0, window, cx);
++                bottom_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let mut div = workspace.update_in(cx, |workspace, window, cx| {
++            workspace
++                .bottom_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx))
++        });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            EdgesRefinement {
++                top: None,
++                right: None,
++                bottom: None,
++                left: None,
++            }
++        );
++        assert_eq!(
++            style.corner_radii,
++            CornersRefinement {
++                top_left: Some(AbsoluteLength::Pixels(px(12.))),
++                top_right: Some(AbsoluteLength::Pixels(px(12.))),
++                bottom_right: Some(AbsoluteLength::Pixels(px(12.))),
++                bottom_left: Some(AbsoluteLength::Pixels(px(12.))),
++            }
++        );
++        assert!(style.box_shadow.is_some());
++    }
++
++    #[gpui::test]
++    async fn test_dock_render_default_right_and_bottom(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        // Right dock
++        let _right_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Right, 100, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.right_dock().update(cx, |right_dock, cx| {
++                right_dock.activate_panel(0, window, cx);
++                right_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let mut right_div = workspace.update_in(cx, |workspace, window, cx| {
++            workspace
++                .right_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx))
++        });
++
++        let right_style = right_div.style();
++        assert_eq!(
++            right_style.border_widths,
++            EdgesRefinement {
++                top: None,
++                right: None,
++                bottom: None,
++                left: Some(AbsoluteLength::Pixels(px(1.))),
++            }
++        );
++
++        // Bottom dock
++        let _bottom_panel = workspace.update_in(cx, |workspace, window, cx| {
++            let panel = cx.new(|cx| TestPanel::new(DockPosition::Bottom, 101, cx));
++            workspace.add_panel(panel.clone(), window, cx);
++            workspace.bottom_dock().update(cx, |bottom_dock, cx| {
++                bottom_dock.activate_panel(0, window, cx);
++                bottom_dock.set_open(true, window, cx);
++            });
++            panel
++        });
++
++        let mut bottom_div = workspace.update_in(cx, |workspace, window, cx| {
++            workspace
++                .bottom_dock()
++                .update(cx, |dock, cx| dock.render_panel(window, cx))
++        });
++
++        let bottom_style = bottom_div.style();
++        assert_eq!(
++            bottom_style.border_widths,
++            EdgesRefinement {
++                top: Some(AbsoluteLength::Pixels(px(1.))),
++                right: None,
++                bottom: None,
++                left: None,
++            }
++        );
++    }
++}
+diff --git a/crates/workspace/src/pane.rs b/crates/workspace/src/pane.rs
+index 25771a8..92af94b 100644
+--- a/crates/workspace/src/pane.rs
++++ b/crates/workspace/src/pane.rs
+@@ -2904,8 +2904,15 @@ impl Pane {
+ 
+         let has_file_icon = icon.is_some();
+ 
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++        let pill_style = island_layout.enabled && island_layout.pill_tabs;
++
+         let capability = item.capability(cx);
+         let tab = Tab::new(ix)
++            .pill_style(pill_style)
++            .when(island_layout.enabled && !island_layout.pill_tabs, |tab| {
++                tab.corner_radius(px(island_layout.corner_radius))
++            })
+             .position(if is_first_item {
+                 TabPosition::First
+             } else if is_last_item {
+@@ -3607,9 +3614,16 @@ impl Pane {
+         window: &mut Window,
+         cx: &mut Context<Pane>,
+     ) -> AnyElement {
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++        let pill_style = island_layout.enabled && island_layout.pill_tabs;
++
+         let tab_bar = self
+             .configure_tab_bar_start(
+-                TabBar::new("tab_bar"),
++                TabBar::new("tab_bar")
++                    .pill_style(pill_style)
++                    .when(island_layout.enabled, |tb| {
++                        tb.corner_radius(px(island_layout.corner_radius))
++                    }),
+                 navigate_backward,
+                 navigate_forward,
+                 window,
+@@ -3645,9 +3659,16 @@ impl Pane {
+         window: &mut Window,
+         cx: &mut Context<Pane>,
+     ) -> AnyElement {
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++        let pill_style = island_layout.enabled && island_layout.pill_tabs;
++
+         let pinned_tab_bar = self
+             .configure_tab_bar_start(
+-                TabBar::new("pinned_tab_bar"),
++                TabBar::new("pinned_tab_bar")
++                    .pill_style(pill_style)
++                    .when(island_layout.enabled, |tb| {
++                        tb.corner_radius(px(island_layout.corner_radius))
++                    }),
+                 navigate_backward,
+                 navigate_forward,
+                 window,
+@@ -3667,11 +3688,9 @@ impl Pane {
+             .flex_none()
+             .child(pinned_tab_bar)
+             .child(
+-                TabBar::new("unpinned_tab_bar").child(self.render_unpinned_tabs_container(
+-                    unpinned_tabs,
+-                    tab_count,
+-                    cx,
+-                )),
++                TabBar::new("unpinned_tab_bar")
++                    .pill_style(pill_style)
++                    .child(self.render_unpinned_tabs_container(unpinned_tabs, tab_count, cx)),
+             )
+             .into_any_element()
+     }
+@@ -4406,8 +4425,8 @@ impl Focusable for Pane {
+     }
+ }
+ 
+-impl Render for Pane {
+-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
++impl Pane {
++    pub fn render_pane(&mut self, window: &mut Window, cx: &mut Context<Self>) -> gpui::Div {
+         let mut key_context = KeyContext::new_with_defaults();
+         key_context.add("Pane");
+         if self.active_item().is_none() {
+@@ -4429,12 +4448,24 @@ impl Render for Pane {
+             project.is_local() || project.is_via_wsl(cx)
+         };
+ 
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++        let is_island_card = island_layout.enabled && self.in_center_group;
++
+         v_flex()
+             .key_context(key_context)
+             .track_focus(&self.focus_handle(cx))
+             .size_full()
+             .flex_none()
+             .overflow_hidden()
++            .when(is_island_card, |this| {
++                this.rounded(px(island_layout.corner_radius))
++                    .shadow_sm()
++                    .when(island_layout.border, |this| {
++                        this.border_1()
++                            .border_color(cx.theme().colors().border_variant)
++                    })
++                    .bg(cx.theme().colors().editor_background)
++            })
+             .on_action(cx.listener(|pane, split: &SplitLeft, window, cx| {
+                 pane.split(SplitDirection::Left, split.mode, window, cx)
+             }))
+@@ -4602,21 +4633,36 @@ impl Render for Pane {
+                     .relative()
+                     .group("")
+                     .overflow_hidden()
++                    .when(is_island_card, |this| {
++                        this.rounded_b(px(island_layout.corner_radius))
++                    })
+                     .on_drag_move::<DraggedTab>(cx.listener(Self::handle_drag_move))
+                     .on_drag_move::<DraggedSelection>(cx.listener(Self::handle_drag_move))
+                     .when(accepts_external_paths, |div| {
+                         div.on_drag_move::<ExternalPaths>(cx.listener(Self::handle_drag_move))
+                     })
+-                    .map(|div| {
++                    .map(|this| {
+                         if let Some(item) = self.active_item() {
+-                            div.id("pane_placeholder")
++                            this.id("pane_placeholder")
+                                 .v_flex()
+                                 .size_full()
+                                 .overflow_hidden()
++                                .when(is_island_card, |this| {
++                                    this.rounded_b(px(island_layout.corner_radius))
++                                })
+                                 .child(self.toolbar.clone())
+-                                .child(item.to_any_view())
++                                .child(
++                                    div()
++                                        .flex_1()
++                                        .size_full()
++                                        .overflow_hidden()
++                                        .when(is_island_card, |this| {
++                                            this.rounded_b(px(island_layout.corner_radius))
++                                        })
++                                        .child(item.to_any_view()),
++                                )
+                         } else {
+-                            let placeholder = div
++                            let placeholder = this
+                                 .id("pane_placeholder")
+                                 .h_flex()
+                                 .size_full()
+@@ -4653,6 +4699,9 @@ impl Render for Pane {
+                             .invisible()
+                             .absolute()
+                             .bg(cx.theme().colors().drop_target_background)
++                            .when(island_layout.enabled, |this| {
++                                this.rounded(px(island_layout.corner_radius))
++                            })
+                             .group_drag_over::<DraggedTab>("", |style| style.visible())
+                             .group_drag_over::<DraggedSelection>("", |style| style.visible())
+                             .when(accepts_external_paths, |div| {
+@@ -4729,6 +4778,12 @@ impl Render for Pane {
+     }
+ }
+ 
++impl Render for Pane {
++    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
++        self.render_pane(window, cx)
++    }
++}
++
+ impl ItemNavHistory {
+     pub fn is_preview_item(&self) -> bool {
+         self.history.0.lock().preview_item_id == Some(self.item.id())
+@@ -5054,6 +5109,8 @@ pub fn render_item_indicator(item: Box<dyn ItemHandle>, cx: &App) -> Option<Indi
+ 
+ impl Render for DraggedTab {
+     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++        let pill_style = island_layout.enabled && island_layout.pill_tabs;
+         let ui_font = ThemeSettings::get_global(cx).ui_font.clone();
+         let label = self.item.tab_content(
+             TabContentParams {
+@@ -5072,6 +5129,7 @@ impl Render for DraggedTab {
+                 .read(cx)
+                 .tab_icon_element(self.item.as_ref(), self.is_active, window, cx);
+         Tab::new("")
++            .pill_style(pill_style)
+             .toggle_state(self.is_active)
+             .children(icon)
+             .child(label)
+@@ -5091,7 +5149,7 @@ mod tests {
+     };
+     use gpui::{
+         AppContext, Axis, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+-        TestAppContext, VisualTestContext, size,
++        TestAppContext, UpdateGlobal, VisualTestContext, size,
+     };
+     use project::FakeFs;
+     use settings::SettingsStore;
+@@ -9664,4 +9722,124 @@ mod tests {
+             }
+         }
+     }
++
++    #[gpui::test]
++    async fn test_pane_render_default_flat_styling(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let pane = workspace.read_with(cx, |workspace, _| workspace.active_pane().clone());
++
++        let mut div = workspace.update_in(cx, |_, window, cx| {
++            pane.update(cx, |pane, cx| pane.render_pane(window, cx))
++        });
++
++        let style = div.style();
++        assert_eq!(style.corner_radii, gpui::CornersRefinement::default());
++        assert_eq!(style.border_widths, gpui::EdgesRefinement::default());
++        assert!(style.box_shadow.is_none());
++    }
++
++    #[gpui::test]
++    async fn test_pane_render_island_layout_card_styling(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(18.0),
++                        gap: Some(6.0),
++                        border: Some(true),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let pane = workspace.read_with(cx, |workspace, _| workspace.active_pane().clone());
++
++        let (mut div, border_variant, editor_bg) = workspace.update_in(cx, |_, window, cx| {
++            let border_variant = cx.theme().colors().border_variant;
++            let editor_bg = cx.theme().colors().editor_background;
++            let div = pane.update(cx, |pane, cx| pane.render_pane(window, cx));
++            (div, border_variant, editor_bg)
++        });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            gpui::EdgesRefinement {
++                top: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                right: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                bottom: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                left: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++            }
++        );
++        assert_eq!(style.border_color, Some(border_variant));
++        assert_eq!(
++            style.corner_radii,
++            gpui::CornersRefinement {
++                top_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(18.))),
++                top_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(18.))),
++                bottom_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(18.))),
++                bottom_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(18.))),
++            }
++        );
++        assert_eq!(style.background, Some(gpui::Fill::Color(editor_bg.into())));
++        assert!(style.box_shadow.is_some());
++    }
++
++    #[gpui::test]
++    async fn test_pane_render_island_layout_without_border(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(12.0),
++                        gap: Some(6.0),
++                        border: Some(false),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let pane = workspace.read_with(cx, |workspace, _| workspace.active_pane().clone());
++
++        let mut div = workspace.update_in(cx, |_, window, cx| {
++            pane.update(cx, |pane, cx| pane.render_pane(window, cx))
++        });
++
++        let style = div.style();
++        assert_eq!(style.border_widths, gpui::EdgesRefinement::default());
++        assert_eq!(
++            style.corner_radii,
++            gpui::CornersRefinement {
++                top_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                top_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                bottom_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                bottom_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++            }
++        );
++        assert!(style.box_shadow.is_some());
++    }
+ }
+diff --git a/crates/workspace/src/pane_group.rs b/crates/workspace/src/pane_group.rs
+index 672190a..b303342 100644
+--- a/crates/workspace/src/pane_group.rs
++++ b/crates/workspace/src/pane_group.rs
+@@ -593,14 +593,11 @@ impl Member {
+                     })
+                     .children(decoration.status_box);
+ 
++                let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++                let container = Self::render_member_element(is_maximized, &island_layout, pane);
++
+                 PaneRenderResult {
+-                    element: div()
+-                        .relative()
+-                        .flex_1()
+-                        .size_full()
+-                        .when(is_maximized, |this| this.p_2())
+-                        .child(pane)
+-                        .into_any(),
++                    element: container.into_any(),
+                     contains_active_pane: is_active,
+                     #[cfg(any(test, feature = "test-support"))]
+                     decorated_pane_ix: None,
+@@ -610,6 +607,19 @@ impl Member {
+         }
+     }
+ 
++    pub fn render_member_element(
++        is_maximized: bool,
++        _island_layout: &crate::workspace_settings::IslandLayoutSettings,
++        pane_el: Div,
++    ) -> Div {
++        div()
++            .relative()
++            .flex_1()
++            .size_full()
++            .when(is_maximized, |this| this.p_2())
++            .child(pane_el)
++    }
++
+     pub fn contains_pane(&self, needle: &Entity<Pane>) -> bool {
+         match self {
+             Member::Pane(pane) => pane == needle,
+@@ -1543,10 +1553,12 @@ mod element {
+                         window.set_cursor_style(cursor_style, &handle.hitbox);
+                     }
+ 
+-                    window.paint_quad(gpui::fill(
+-                        handle.divider_bounds,
+-                        cx.theme().colors().pane_group_border,
+-                    ));
++                    if !WorkspaceSettings::get_global(cx).island_layout.enabled {
++                        window.paint_quad(gpui::fill(
++                            handle.divider_bounds,
++                            cx.theme().colors().pane_group_border,
++                        ));
++                    }
+ 
+                     window.on_mouse_event({
+                         let dragged_handle = layout.dragged_handle.clone();
+@@ -1616,3 +1628,31 @@ mod element {
+         (flexes.iter().copied().sum::<f32>() - flexes.len() as f32).abs() < 0.001
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gpui::EdgesRefinement;
++
++    #[test]
++    fn test_member_render_element_default_padding() {
++        let island_layout = crate::workspace_settings::IslandLayoutSettings::default();
++        let mut el = Member::render_member_element(false, &island_layout, div());
++        let style = el.style();
++        assert_eq!(style.padding, EdgesRefinement::default());
++    }
++
++    #[test]
++    fn test_member_render_element_island_layout() {
++        let island_layout = crate::workspace_settings::IslandLayoutSettings {
++            enabled: true,
++            corner_radius: 18.0,
++            gap: 8.0,
++            border: true,
++            pill_tabs: true,
++        };
++        let mut el = Member::render_member_element(false, &island_layout, div());
++        let style = el.style();
++        assert_eq!(style.padding, EdgesRefinement::default());
++    }
++}
+diff --git a/crates/workspace/src/status_bar.rs b/crates/workspace/src/status_bar.rs
+index 0cf9e97..8bc46b7 100644
+--- a/crates/workspace/src/status_bar.rs
++++ b/crates/workspace/src/status_bar.rs
+@@ -6,7 +6,7 @@ use gpui::{
+     Anchor, AnyView, App, Context, Decorations, Entity, FocusHandle, Focusable, IntoElement,
+     ParentElement, Render, Role, SharedString, Styled, Subscription, WeakEntity, Window,
+ };
+-use settings::{SettingsContent, update_settings_file};
++use settings::{Settings, SettingsContent, update_settings_file};
+ use std::{any::TypeId, sync::Arc};
+ use theme::CLIENT_SIDE_DECORATION_ROUNDING;
+ use ui::{ContextMenu, Divider, IconPosition, Indicator, Tooltip, prelude::*, right_click_menu};
+@@ -151,35 +151,51 @@ impl Render for StatusBar {
+             .justify_between()
+             .gap(DynamicSpacing::Base08.rems(cx))
+             .p(DynamicSpacing::Base04.rems(cx))
+-            .bg(cx.theme().colors().status_bar_background)
+-            .map(|el| match window.window_decorations() {
+-                Decorations::Server => el,
+-                Decorations::Client { tiling, .. } => el
+-                    .when(
+-                        !(tiling.bottom || tiling.right)
+-                            && !(sidebar.open && sidebar.side == SidebarSide::Right),
+-                        |el| el.rounded_br(CLIENT_SIDE_DECORATION_ROUNDING),
+-                    )
+-                    .when(
+-                        !(tiling.bottom || tiling.left)
+-                            && !(sidebar.open && sidebar.side == SidebarSide::Left),
+-                        |el| el.rounded_bl(CLIENT_SIDE_DECORATION_ROUNDING),
+-                    )
+-                    // This border is to avoid a transparent gap in the rounded corners
+-                    .mb(px(-1.))
+-                    .mt({
+-                        #[cfg(target_os = "linux")]
+-                        let needs_gap_fix = {
+-                            // Running on Wayland and using some scaling levels other than 100% causes a
+-                            // 1px gap above the status bar; adding a margin avoids this.
+-                            gpui::guess_compositor() == "Wayland" && window.scale_factor() != 1.0
+-                        };
+-                        #[cfg(not(target_os = "linux"))]
+-                        let needs_gap_fix = false;
+-                        if needs_gap_fix { px(-1.) } else { px(0.) }
+-                    })
+-                    .border_b(px(1.0))
+-                    .border_color(cx.theme().colors().status_bar_background),
++            .map(|el| {
++                let island_layout = crate::WorkspaceSettings::get_global(cx).island_layout;
++                if island_layout.enabled {
++                    let radius = px(island_layout.corner_radius * 0.75);
++                    return el.overflow_hidden().rounded(radius);
++                }
++                el.bg(cx.theme().colors().status_bar_background)
++            })
++            .map(|el| {
++                if crate::WorkspaceSettings::get_global(cx)
++                    .island_layout
++                    .enabled
++                {
++                    return el;
++                }
++                match window.window_decorations() {
++                    Decorations::Server => el,
++                    Decorations::Client { tiling, .. } => el
++                        .when(
++                            !(tiling.bottom || tiling.right)
++                                && !(sidebar.open && sidebar.side == SidebarSide::Right),
++                            |el| el.rounded_br(CLIENT_SIDE_DECORATION_ROUNDING),
++                        )
++                        .when(
++                            !(tiling.bottom || tiling.left)
++                                && !(sidebar.open && sidebar.side == SidebarSide::Left),
++                            |el| el.rounded_bl(CLIENT_SIDE_DECORATION_ROUNDING),
++                        )
++                        // This border is to avoid a transparent gap in the rounded corners
++                        .mb(px(-1.))
++                        .mt({
++                            #[cfg(target_os = "linux")]
++                            let needs_gap_fix = {
++                                // Running on Wayland and using some scaling levels other than 100% causes a
++                                // 1px gap above the status bar; adding a margin avoids this.
++                                gpui::guess_compositor() == "Wayland"
++                                    && window.scale_factor() != 1.0
++                            };
++                            #[cfg(not(target_os = "linux"))]
++                            let needs_gap_fix = false;
++                            if needs_gap_fix { px(-1.) } else { px(0.) }
++                        })
++                        .border_b(px(1.0))
++                        .border_color(cx.theme().colors().status_bar_background),
++                }
+             })
+             .child(self.render_left_tools(&sidebar, cx))
+             .child(self.render_right_tools(&sidebar, cx))
+diff --git a/crates/workspace/src/welcome.rs b/crates/workspace/src/welcome.rs
+index 837418e..bc4153d 100644
+--- a/crates/workspace/src/welcome.rs
++++ b/crates/workspace/src/welcome.rs
+@@ -460,7 +460,6 @@ impl Render for WelcomePage {
+             .on_action(cx.listener(Self::select_next))
+             .on_action(cx.listener(Self::open_recent_project))
+             .size_full()
+-            .bg(cx.theme().colors().editor_background)
+             .justify_center()
+             .child(
+                 v_flex()
+diff --git a/crates/workspace/src/workspace.rs b/crates/workspace/src/workspace.rs
+index 6ddb343..60c8d0c 100644
+--- a/crates/workspace/src/workspace.rs
++++ b/crates/workspace/src/workspace.rs
+@@ -160,8 +160,8 @@ use util::{
+ use uuid::Uuid;
+ pub use workspace_settings::{
+     AccessibleMode, AutosaveSetting, BottomDockLayout, EncodingDisplayOptions, FocusFollowsMouse,
+-    RestoreOnStartupBehavior, StatusBarSettings, TabBarSettings, WorkspaceSettings,
+-    closing_last_window_quits_app, observe_accessible_mode,
++    IslandLayoutSettings, RestoreOnStartupBehavior, StatusBarSettings, TabBarSettings,
++    WorkspaceSettings, closing_last_window_quits_app, observe_accessible_mode,
+ };
+ use zed_actions::{Spawn, feedback::FileBugReport, theme::ToggleMode};
+ 
+@@ -8683,6 +8683,7 @@ impl Workspace {
+                         this.track_focus(self.region_focus_handles.dock(position))
+                     })
+             })
++            .when(!dock_is_open, |this| this.hidden())
+             .flex()
+             .overflow_hidden()
+             .flex_none()
+@@ -8737,6 +8738,45 @@ impl Workspace {
+         Some(container)
+     }
+ 
++    pub(crate) fn style_workspace_container(
++        div: Div,
++        island_layout: &crate::workspace_settings::IslandLayoutSettings,
++        colors: &theme::ThemeColors,
++    ) -> Stateful<Div> {
++        div.id("workspace")
++            .bg(colors.background)
++            .relative()
++            .flex_1()
++            .w_full()
++            .flex()
++            .flex_col()
++            .overflow_hidden()
++            .when(!island_layout.enabled, |this| {
++                this.border_t_1().border_b_1().border_color(colors.border)
++            })
++            .when(island_layout.enabled, |this| this.p(px(island_layout.gap)))
++    }
++
++    pub(crate) fn render_floating_status_bar(
++        &self,
++        island_layout: &crate::workspace_settings::IslandLayoutSettings,
++        cx: &App,
++    ) -> Stateful<Div> {
++        div()
++            .id("floating-status-bar")
++            .mx(px(island_layout.gap))
++            .mb(px(island_layout.gap))
++            .rounded(px(island_layout.corner_radius * 0.75))
++            .overflow_hidden()
++            .bg(cx.theme().colors().status_bar_background)
++            .when(island_layout.border, |this| {
++                this.border_1()
++                    .border_color(cx.theme().colors().border_variant)
++            })
++            .shadow_sm()
++            .child(self.status_bar.clone())
++    }
++
+     /// Returns the currently-visible major window regions ("parts"), in a stable
+     /// cyclic order: title bar, left dock, editor, right dock, bottom dock,
+     /// status bar. Closed docks are skipped. Used by
+@@ -9617,6 +9657,7 @@ impl Render for Workspace {
+             .map(|(_, notification)| notification.entity_id())
+             .collect::<Vec<_>>();
+         let bottom_dock_layout = WorkspaceSettings::get_global(cx).bottom_dock_layout;
++        let island_layout = WorkspaceSettings::get_global(cx).island_layout;
+ 
+         let pane_render_context = PaneRenderContext {
+             follower_states: &self.follower_states,
+@@ -9686,19 +9727,9 @@ impl Render for Workspace {
+                     .flex_1()
+                     .flex()
+                     .flex_col()
++                    .when(island_layout.enabled, |this| this.bg(colors.background))
+                     .child(
+-                        div()
+-                            .id("workspace")
+-                            .bg(colors.background)
+-                            .relative()
+-                            .flex_1()
+-                            .w_full()
+-                            .flex()
+-                            .flex_col()
+-                            .overflow_hidden()
+-                            .border_t_1()
+-                            .border_b_1()
+-                            .border_color(colors.border)
++                        Self::style_workspace_container(div(), &island_layout, colors)
+                             .child({
+                                 let this = cx.entity();
+                                 canvas(
+@@ -9780,17 +9811,29 @@ impl Render for Workspace {
+                                 ))
+                             })
+                             .child({
++                                let left_open = self.left_dock.read(cx).is_open();
++                                let right_open = self.right_dock.read(cx).is_open();
++                                let bottom_open = self.bottom_dock.read(cx).is_open();
++
+                                 match bottom_dock_layout {
+                                     BottomDockLayout::Full => div()
+                                         .flex()
+                                         .flex_col()
+                                         .h_full()
++                                        .when(
++                                            island_layout.enabled && bottom_open,
++                                            |this| this.gap(px(island_layout.gap)),
++                                        )
+                                         .child(
+                                             div()
+                                                 .flex()
+                                                 .flex_row()
+                                                 .flex_1()
+                                                 .overflow_hidden()
++                                                .when(
++                                                    island_layout.enabled && (left_open || right_open),
++                                                    |this| this.gap(px(island_layout.gap)),
++                                                )
+                                                 .children(self.render_dock(
+                                                     DockPosition::Left,
+                                                     &self.left_dock,
+@@ -9832,28 +9875,46 @@ impl Render for Workspace {
+                                                     cx,
+                                                 )),
+                                         )
+-                                        .child(div().w_full().children(self.render_dock(
+-                                            DockPosition::Bottom,
+-                                            &self.bottom_dock,
+-                                            window,
+-                                            cx,
+-                                        ))),
++                                        .child(
++                                            div()
++                                                .w_full()
++                                                .when(
++                                                    !bottom_open,
++                                                    |this| this.hidden(),
++                                                )
++                                                .children(self.render_dock(
++                                                    DockPosition::Bottom,
++                                                    &self.bottom_dock,
++                                                    window,
++                                                    cx,
++                                                )),
++                                        ),
+ 
+                                     BottomDockLayout::LeftAligned => div()
+                                         .flex()
+                                         .flex_row()
+                                         .h_full()
++                                        .when(island_layout.enabled && right_open, |this| {
++                                            this.gap(px(island_layout.gap))
++                                        })
+                                         .child(
+                                             div()
+                                                 .flex()
+                                                 .flex_col()
+                                                 .flex_1()
+                                                 .h_full()
++                                                .when(
++                                                    island_layout.enabled && bottom_open,
++                                                    |this| this.gap(px(island_layout.gap)),
++                                                )
+                                                 .child(
+                                                     div()
+                                                         .flex()
+                                                         .flex_row()
+                                                         .flex_1()
++                                                        .when(island_layout.enabled && left_open, |this| {
++                                                            this.gap(px(island_layout.gap))
++                                                        })
+                                                         .children(self.render_dock(
+                                                             DockPosition::Left,
+                                                             &self.left_dock,
+@@ -9893,12 +9954,20 @@ impl Render for Workspace {
+                                                                 ),
+                                                         ),
+                                                 )
+-                                                .child(div().w_full().children(self.render_dock(
+-                                                    DockPosition::Bottom,
+-                                                    &self.bottom_dock,
+-                                                    window,
+-                                                    cx,
+-                                                ))),
++                                                .child(
++                                                    div()
++                                                        .w_full()
++                                                        .when(
++                                                            !bottom_open,
++                                                            |this| this.hidden(),
++                                                        )
++                                                        .children(self.render_dock(
++                                                            DockPosition::Bottom,
++                                                            &self.bottom_dock,
++                                                            window,
++                                                            cx,
++                                                        )),
++                                                ),
+                                         )
+                                         .children(self.render_dock(
+                                             DockPosition::Right,
+@@ -9906,10 +9975,14 @@ impl Render for Workspace {
+                                             window,
+                                             cx,
+                                         )),
++
+                                     BottomDockLayout::RightAligned => div()
+                                         .flex()
+                                         .flex_row()
+                                         .h_full()
++                                        .when(island_layout.enabled && left_open, |this| {
++                                            this.gap(px(island_layout.gap))
++                                        })
+                                         .children(self.render_dock(
+                                             DockPosition::Left,
+                                             &self.left_dock,
+@@ -9922,11 +9995,18 @@ impl Render for Workspace {
+                                                 .flex_col()
+                                                 .flex_1()
+                                                 .h_full()
++                                                .when(
++                                                    island_layout.enabled && bottom_open,
++                                                    |this| this.gap(px(island_layout.gap)),
++                                                )
+                                                 .child(
+                                                     div()
+                                                         .flex()
+                                                         .flex_row()
+                                                         .flex_1()
++                                                        .when(island_layout.enabled && right_open, |this| {
++                                                            this.gap(px(island_layout.gap))
++                                                        })
+                                                         .child(
+                                                             div()
+                                                                 .flex()
+@@ -9966,17 +10046,30 @@ impl Render for Workspace {
+                                                             cx,
+                                                         )),
+                                                 )
+-                                                .child(div().w_full().children(self.render_dock(
+-                                                    DockPosition::Bottom,
+-                                                    &self.bottom_dock,
+-                                                    window,
+-                                                    cx,
+-                                                ))),
++                                                .child(
++                                                    div()
++                                                        .w_full()
++                                                        .when(
++                                                            !bottom_open,
++                                                            |this| this.hidden(),
++                                                        )
++                                                        .children(self.render_dock(
++                                                            DockPosition::Bottom,
++                                                            &self.bottom_dock,
++                                                            window,
++                                                            cx,
++                                                        )),
++                                                ),
+                                         ),
++
+                                     BottomDockLayout::Contained => div()
+                                         .flex()
+                                         .flex_row()
+                                         .h_full()
++                                        .when(
++                                            island_layout.enabled && (left_open || right_open),
++                                            |this| this.gap(px(island_layout.gap)),
++                                        )
+                                         .children(self.render_dock(
+                                             DockPosition::Left,
+                                             &self.left_dock,
+@@ -9989,6 +10082,10 @@ impl Render for Workspace {
+                                                 .flex_col()
+                                                 .flex_1()
+                                                 .overflow_hidden()
++                                                .when(
++                                                    island_layout.enabled && bottom_open,
++                                                    |this| this.gap(px(island_layout.gap)),
++                                                )
+                                                 .child(
+                                                     h_flex()
+                                                         .flex_1()
+@@ -10073,7 +10170,11 @@ impl Render for Workspace {
+                             .children(self.render_notifications(window, cx)),
+                     )
+                     .when(self.status_bar_visible(cx), |parent| {
+-                        parent.child(self.status_bar.clone())
++                        if island_layout.enabled {
++                            parent.child(self.render_floating_status_bar(&island_layout, cx))
++                        } else {
++                            parent.child(self.status_bar.clone())
++                        }
+                     })
+                     .child(self.toast_layer.clone()),
+             )
+@@ -18979,6 +19080,199 @@ mod tests {
+         });
+     }
+ 
++    #[gpui::test]
++    async fn test_workspace_canvas_backdrop_and_borders_default(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let (mut div, border_color) = workspace.update_in(cx, |_, _, cx| {
++            let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++            let colors = cx.theme().colors().clone();
++            let div = Workspace::style_workspace_container(div(), &island_layout, &colors);
++            (div, colors.border)
++        });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            gpui::EdgesRefinement {
++                top: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                right: None,
++                bottom: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                left: None,
++            }
++        );
++        assert_eq!(style.border_color, Some(border_color));
++        assert_eq!(style.padding, gpui::EdgesRefinement::default());
++    }
++
++    #[gpui::test]
++    async fn test_workspace_canvas_backdrop_and_padding_island_layout(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(18.0),
++                        gap: Some(8.0),
++                        border: Some(true),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let (mut div, bg_color) = workspace.update_in(cx, |_, _, cx| {
++            let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++            let colors = cx.theme().colors().clone();
++            let div = Workspace::style_workspace_container(div(), &island_layout, &colors);
++            (div, colors.background)
++        });
++
++        let style = div.style();
++        assert_eq!(style.border_widths, gpui::EdgesRefinement::default());
++        assert_eq!(
++            style.padding,
++            gpui::EdgesRefinement {
++                top: Some(gpui::px(8.).into()),
++                right: Some(gpui::px(8.).into()),
++                bottom: Some(gpui::px(8.).into()),
++                left: Some(gpui::px(8.).into()),
++            }
++        );
++        assert_eq!(style.background, Some(gpui::Fill::Color(bg_color.into())));
++    }
++
++    #[gpui::test]
++    async fn test_floating_status_bar_styling_island_layout(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(20.0),
++                        gap: Some(6.0),
++                        border: Some(true),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let (mut div, border_variant, status_bar_bg) =
++            workspace.update_in(cx, |workspace, _, cx| {
++                let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++                let border_variant = cx.theme().colors().border_variant;
++                let status_bar_bg = cx.theme().colors().status_bar_background;
++                let div = workspace.render_floating_status_bar(&island_layout, cx);
++                (div, border_variant, status_bar_bg)
++            });
++
++        let style = div.style();
++        assert_eq!(
++            style.border_widths,
++            gpui::EdgesRefinement {
++                top: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                right: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                bottom: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++                left: Some(gpui::AbsoluteLength::Pixels(gpui::px(1.))),
++            }
++        );
++        assert_eq!(style.border_color, Some(border_variant));
++        assert_eq!(
++            style.corner_radii,
++            gpui::CornersRefinement {
++                top_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(15.))),
++                top_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(15.))),
++                bottom_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(15.))),
++                bottom_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(15.))),
++            }
++        );
++        assert_eq!(
++            style.margin,
++            gpui::EdgesRefinement {
++                top: None,
++                right: Some(gpui::px(6.).into()),
++                bottom: Some(gpui::px(6.).into()),
++                left: Some(gpui::px(6.).into()),
++            }
++        );
++        assert_eq!(
++            style.background,
++            Some(gpui::Fill::Color(status_bar_bg.into()))
++        );
++        assert!(style.box_shadow.is_some());
++    }
++
++    #[gpui::test]
++    async fn test_floating_status_bar_styling_without_border(cx: &mut TestAppContext) {
++        init_test(cx);
++
++        cx.update(|cx| {
++            SettingsStore::update_global(cx, |settings, cx| {
++                settings.update_user_settings(cx, |settings| {
++                    settings.workspace.island_layout = Some(settings::IslandLayoutSettings {
++                        enabled: Some(true),
++                        corner_radius: Some(16.0),
++                        gap: Some(4.0),
++                        border: Some(false),
++                        pill_tabs: Some(true),
++                    });
++                });
++            });
++        });
++
++        let fs = FakeFs::new(cx.executor());
++        let project = Project::test(fs, [], cx).await;
++        let (workspace, cx) =
++            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
++
++        let mut div = workspace.update_in(cx, |workspace, _, cx| {
++            let island_layout = WorkspaceSettings::get_global(cx).island_layout;
++            workspace.render_floating_status_bar(&island_layout, cx)
++        });
++
++        let style = div.style();
++        assert_eq!(style.border_widths, gpui::EdgesRefinement::default());
++        assert_eq!(
++            style.corner_radii,
++            gpui::CornersRefinement {
++                top_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                top_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                bottom_right: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++                bottom_left: Some(gpui::AbsoluteLength::Pixels(gpui::px(12.))),
++            }
++        );
++        assert_eq!(
++            style.margin,
++            gpui::EdgesRefinement {
++                top: None,
++                right: Some(gpui::px(4.).into()),
++                bottom: Some(gpui::px(4.).into()),
++                left: Some(gpui::px(4.).into()),
++            }
++        );
++        assert!(style.box_shadow.is_some());
++    }
++
+     #[gpui::test]
+     async fn test_pane_close_active_item(cx: &mut TestAppContext) {
+         init_test(cx);
+diff --git a/crates/workspace/src/workspace_settings.rs b/crates/workspace/src/workspace_settings.rs
+index 7bb4189..ec143e3 100644
+--- a/crates/workspace/src/workspace_settings.rs
++++ b/crates/workspace/src/workspace_settings.rs
+@@ -47,6 +47,28 @@ pub struct WorkspaceSettings {
+     pub zoomed_padding: bool,
+     pub window_decorations: settings::WindowDecorations,
+     pub focus_follows_mouse: FocusFollowsMouse,
++    pub island_layout: IslandLayoutSettings,
++}
++
++#[derive(Copy, Clone, PartialEq, Debug)]
++pub struct IslandLayoutSettings {
++    pub enabled: bool,
++    pub corner_radius: f32,
++    pub gap: f32,
++    pub border: bool,
++    pub pill_tabs: bool,
++}
++
++impl Default for IslandLayoutSettings {
++    fn default() -> Self {
++        Self {
++            enabled: false,
++            corner_radius: 18.0,
++            gap: 6.0,
++            border: true,
++            pill_tabs: true,
++        }
++    }
+ }
+ 
+ #[cfg(target_os = "macos")]
+@@ -97,6 +119,7 @@ pub struct TabBarSettings {
+ impl Settings for WorkspaceSettings {
+     fn from_settings(content: &settings::SettingsContent) -> Self {
+         let workspace = &content.workspace;
++        let island_layout = workspace.island_layout.as_ref();
+         Self {
+             active_pane_modifiers: ActivePanelModifiers {
+                 border_size: Some(
+@@ -166,6 +189,13 @@ impl Settings for WorkspaceSettings {
+                         .unwrap_or(250),
+                 ),
+             },
++            island_layout: IslandLayoutSettings {
++                enabled: island_layout.and_then(|s| s.enabled).unwrap_or(false),
++                corner_radius: island_layout.and_then(|s| s.corner_radius).unwrap_or(18.0),
++                gap: island_layout.and_then(|s| s.gap).unwrap_or(6.0),
++                border: island_layout.and_then(|s| s.border).unwrap_or(true),
++                pill_tabs: island_layout.and_then(|s| s.pill_tabs).unwrap_or(true),
++            },
+         }
+     }
+ }
+@@ -240,3 +270,18 @@ impl Settings for StatusBarSettings {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn test_island_layout_settings_defaults() {
++        let defaults = IslandLayoutSettings::default();
++        assert_eq!(defaults.enabled, false);
++        assert_eq!(defaults.corner_radius, 18.0);
++        assert_eq!(defaults.gap, 6.0);
++        assert_eq!(defaults.border, true);
++        assert_eq!(defaults.pill_tabs, true);
++    }
++}

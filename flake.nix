@@ -24,6 +24,14 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    zed = {
+      url = "github:zed-industries/zed/nightly";
+      # Not following nixpkgs to use Zed's binary cache
+      # inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+      # crane
+      # rust-overlay
+    };
     # keep-sorted end
   };
 
@@ -65,4 +73,13 @@
           # keep-sorted end
         ];
       };
+
+  nixConfig = {
+    extra-substituters = [
+      "https://zed.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "zed.cachix.org-1:/pHQ6dpMsAZk2DiP4WCL0p9YDNKWj2Q5FL20bNmw1cU="
+    ];
+  };
 }
