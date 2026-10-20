@@ -72,7 +72,6 @@ in
     programs.zed-editor.enable = isLinux;
 
     programs.zed-editor = {
-      package = pkgs.zed-editor;
       extensions = [
         "csharp"
         "fleet-themes"
@@ -99,14 +98,6 @@ in
           };
         };
         icon_theme = "Material Icon Theme";
-
-        island_layout = {
-          enabled = true;
-          border = false;
-          corner_radius = 12.0;
-          gap = 3.0;
-          pill_tabs = true;
-        };
 
         ui_font_size = 14;
         ui_font_family = "Inter";

@@ -24,14 +24,6 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    zed = {
-      url = "github:zed-industries/zed/nightly";
-      # Not following nixpkgs to use Zed's binary cache
-      # inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-parts.follows = "flake-parts";
-      # crane
-      # rust-overlay
-    };
     # keep-sorted end
   };
 

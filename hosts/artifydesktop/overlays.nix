@@ -46,11 +46,5 @@
         };
       }
     )
-
-    (final: prev: {
-      zed-editor = inputs.zed.packages.${final.system}.default.overrideAttrs (o: {
-        patches = (o.patches or [ ]) ++ [ ./zed-island-layout.patch ];
-      });
-    })
   ];
 }

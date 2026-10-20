@@ -1,20 +1,5 @@
 {
   "nodes": {
-    "crane": {
-      "locked": {
-        "lastModified": 1769737823,
-        "narHash": "sha256-DrBaNpZ+sJ4stXm+0nBX7zqZT9t9P22zbk6m5YhQxS4=",
-        "owner": "ipetkov",
-        "repo": "crane",
-        "rev": "b2f45c3830aa96b7456a4c4bc327d04d7a43e1ba",
-        "type": "github"
-      },
-      "original": {
-        "owner": "ipetkov",
-        "repo": "crane",
-        "type": "github"
-      }
-    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -113,22 +98,6 @@
         "type": "github"
       }
     },
-    "nixpkgs_2": {
-      "locked": {
-        "lastModified": 1791048980,
-        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "disko": "disko",
@@ -136,29 +105,7 @@
         "home-manager": "home-manager",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix",
-        "zed": "zed"
-      }
-    },
-    "rust-overlay": {
-      "inputs": {
-        "nixpkgs": [
-          "zed",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1788851328,
-        "narHash": "sha256-YOwlUD0Lt/3SulKhZ7z0Jmgbq/DWh8SjnGwUlFSw+YM=",
-        "owner": "oxalica",
-        "repo": "rust-overlay",
-        "rev": "6ae57a71bcb0bebc7a66cc2bd76942c4cf649167",
-        "type": "github"
-      },
-      "original": {
-        "owner": "oxalica",
-        "repo": "rust-overlay",
-        "type": "github"
+        "treefmt-nix": "treefmt-nix"
       }
     },
     "treefmt-nix": {
@@ -178,30 +125,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "zed": {
-      "inputs": {
-        "crane": "crane",
-        "flake-parts": [
-          "flake-parts"
-        ],
-        "nixpkgs": "nixpkgs_2",
-        "rust-overlay": "rust-overlay"
-      },
-      "locked": {
-        "lastModified": 1792229398,
-        "narHash": "sha256-SwR0bX1IP6gkQFMVOYtuC+i1mDm129p37YErqO9Z2Nc=",
-        "owner": "zed-industries",
-        "repo": "zed",
-        "rev": "56934ec0560bce8929025497411de7f5322fb6ca",
-        "type": "github"
-      },
-      "original": {
-        "owner": "zed-industries",
-        "ref": "nightly",
-        "repo": "zed",
         "type": "github"
       }
     }
