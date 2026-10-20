@@ -23,8 +23,12 @@ in
       "audio"
     ];
     shell = pkgs.zsh;
+    linger = true;
   };
 
-  homeProfiles.artify.imports = [ ../../home ];
+  homeProfiles.artify.imports = [
+    ./home/pull-backups.nix
+    ../../home
+  ];
   homeProfiles.artify.homeProfile.desktopApps.enable = true;
 }
