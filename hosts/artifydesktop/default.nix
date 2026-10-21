@@ -41,6 +41,8 @@
       withStyle = "bigSur";
       withBanner = "";
     };
+    # Each kernel + initrd is ~55 MB and the ESP is only 512 MB
+    configurationLimit = 5;
   };
 
   boot.plymouth = {
