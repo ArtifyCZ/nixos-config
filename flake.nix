@@ -31,8 +31,6 @@
     {
       self,
       flake-parts,
-      nixpkgs,
-      nix-darwin,
       ...
     }@inputs:
     let
