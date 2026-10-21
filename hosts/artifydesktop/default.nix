@@ -138,6 +138,9 @@
     "nix-command"
     "flakes"
   ];
+  nix.settings.min-free = 50 * 1024 * 1024; # if free disk space drops below 50 GiB during a build
+  nix.settings.max-free = 200 * 1024 * 1024; # then GC until 200 GiB is freed
+  nix.optimise.automatic = true;
 
   environment.sessionVariables = {
     # Hint electron apps to use Wayland
