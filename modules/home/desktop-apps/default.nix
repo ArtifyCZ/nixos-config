@@ -42,7 +42,6 @@ in
       with pkgs;
       lib.mkMerge [
         (lib.mkIf isLinux [
-          brave
           cinny-desktop
           discord
           element-desktop
