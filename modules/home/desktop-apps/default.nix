@@ -59,6 +59,7 @@ in
           velotown-stoat
           vlc
           vscode
+          warp-terminal
         ])
 
         (lib.mkIf isDarwin [
